@@ -2587,7 +2587,11 @@ function ThreadDetailViewInternal(
       mainPaneStrip={
         mainPaneAgentTabs === undefined ? undefined : <ThreadMainPaneStripSlot />
       }
-      onClosePane={onRequestClose ?? undefined}
+      onClosePane={
+        mainPaneAgentTabs === undefined
+          ? (onRequestClose ?? undefined)
+          : undefined
+      }
       onOpenThreadGitAction={gitActions.threadGitActionDialog.onOpen}
       onToggleSecondaryPanel={toggleSecondaryPanel}
       pluginActions={
