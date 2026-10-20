@@ -63,6 +63,7 @@ export interface ThreadDetailHeaderActionsMenuArgs {
 
 interface ThreadDetailHeaderProps {
   actionsMenu: ((args: ThreadDetailHeaderActionsMenuArgs) => ReactNode) | null;
+  hideTitle?: boolean;
   isSecondaryPanelOpen: boolean;
   onClosePane?: () => void;
   onOpenThreadGitAction: (target: ThreadGitActionDialogTarget) => void;
@@ -76,6 +77,7 @@ interface ThreadDetailHeaderProps {
 
 export function ThreadDetailHeader({
   actionsMenu,
+  hideTitle = false,
   isSecondaryPanelOpen,
   onClosePane,
   onOpenThreadGitAction,
@@ -183,6 +185,7 @@ export function ThreadDetailHeader({
   const rightPanelIconName = RIGHT_PANEL_TOGGLE_ICON_NAME;
   const showRightPanelToggle =
     secondaryPanelHost === null && (!isSecondaryPanelOpen || isCompactViewport);
+  const isTitleHidden = hideTitle && !isEditing;
 
   const center = (
     <>
@@ -194,11 +197,18 @@ export function ThreadDetailHeader({
           "relative min-w-0",
           isSplitPaneHeader && "-my-1 -ml-2 rounded-md px-2 py-1",
           isSplitPaneHeader && isFocused && CONTEXT_SELECTION_SURFACE_CLASS,
+          isTitleHidden &&
+            beginPaneDrag &&
+            "cursor-grab touch-none select-none",
         )}
+        onPointerDown={
+          isTitleHidden && beginPaneDrag ? handleTitlePointerDown : undefined
+        }
       >
         <p
           className={cn(
             "relative min-w-0 text-sm font-normal transition-colors",
+            isTitleHidden && "sr-only",
             isEditing && "overflow-visible",
             isSplitPaneHeader &&
               !isFocused &&

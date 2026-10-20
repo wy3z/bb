@@ -2550,6 +2550,7 @@ function ThreadDetailViewInternal(
         />
       )}
       isSecondaryPanelOpen={isSecondaryPanelOpen}
+      hideTitle={mainPaneAgentTabs !== undefined}
       onClosePane={onRequestClose ?? undefined}
       onOpenThreadGitAction={gitActions.threadGitActionDialog.onOpen}
       onToggleSecondaryPanel={toggleSecondaryPanel}
