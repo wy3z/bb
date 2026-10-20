@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useStore } from "jotai";
 import type {
   TerminalSession,
   ThreadStorageFileListResponse,
@@ -71,6 +72,13 @@ import {
   type PluginDetailHistoryTarget,
 } from "./recentlyClosedPanelTabs";
 import { pruneTerminalTabsInFixedPanelState } from "./terminalPanelTabs";
+import {
+  getThreadMainPaneTabsAtom,
+  moveTabToMainPane,
+  moveTabToRightPanel,
+  replaceMainPaneTab,
+  type PanelTabPlacement,
+} from "./threadMainPaneTabs";
 
 interface UseThreadFileTabsParams {
   panelStateId: string | null | undefined;
@@ -154,6 +162,30 @@ interface StorageFileInventory {
 }
 
 type OpenResolvedTabBehavior = "open" | "replace-new-tab";
+
+export interface OpenSecondaryPanelTabOptions {
+  placement?: PanelTabPlacement;
+  viewer?: FileOpenerOverride;
+}
+
+function keepRightPanelSelection(
+  previous: FixedPanelTabsState,
+  next: FixedPanelTabsState,
+): FixedPanelTabsState {
+  if (next === previous) return next;
+  const previousActiveTabId = previous.secondary.activeTabId;
+  const activeTabId =
+    previousActiveTabId !== null &&
+    next.secondary.tabs.some((tab) => tab.id === previousActiveTabId)
+      ? previousActiveTabId
+      : null;
+  return setSecondaryPanelTabsInState({
+    activeTabId,
+    isOpen: previous.secondary.isOpen,
+    state: next,
+    tabs: next.secondary.tabs,
+  });
+}
 
 export { resetRecentlyClosedPanelTabsForTest } from "./recentlyClosedPanelTabs";
 
@@ -272,6 +304,27 @@ function applyPrunedSecondaryTabs(
     state,
     tabs,
   });
+}
+
+function openPluginPanelTabInState(
+  state: FixedPanelTabsState,
+  tab: PluginPanelFixedPanelTab,
+): FixedPanelTabsState {
+  const existing = findSecondaryPanelTab(state.secondary.tabs, tab.id);
+  if (existing !== null && existing.kind === "plugin-panel") {
+    const withTitle =
+      existing.title === tab.title
+        ? state
+        : updateSecondaryPanelTabInState({
+            state,
+            tab: { ...existing, title: tab.title },
+          });
+    return replaceNewTabWithSecondaryPanelTabInState({
+      state: withTitle,
+      tab: existing,
+    });
+  }
+  return replaceNewTabWithSecondaryPanelTabInState({ state, tab });
 }
 
 export function useThreadFileTabs({
@@ -448,12 +501,63 @@ export function useThreadFileTabs({
 
   const { fileOpeners } = usePluginSlots();
   const fileOpenerPreference = useFileOpenerPreferenceValue();
+  const store = useStore();
+  const mainPaneTabsAtom = getThreadMainPaneTabsAtom(resolvedPanelStateId);
+  const latestSecondaryTabsRef = useRef(fixedPanelTabsState.secondary.tabs);
+  latestSecondaryTabsRef.current = fixedPanelTabsState.secondary.tabs;
+
+  const resolveTabPlacement = useCallback(
+    (
+      tabId: string,
+      behavior: OpenResolvedTabBehavior,
+      requested: PanelTabPlacement | undefined,
+    ): PanelTabPlacement => {
+      if (requested !== undefined) return requested;
+      const mainTabIds = store.get(mainPaneTabsAtom).tabIds;
+      if (mainTabIds.includes(tabId)) return "main";
+      const replacedNewTabId =
+        behavior === "replace-new-tab"
+          ? latestSecondaryTabsRef.current.find((tab) => tab.kind === "new-tab")
+              ?.id
+          : undefined;
+      return replacedNewTabId !== undefined &&
+        mainTabIds.includes(replacedNewTabId)
+        ? "main"
+        : "panel";
+    },
+    [mainPaneTabsAtom, store],
+  );
+
+  const placeOpenedTab = useCallback(
+    (
+      tabId: string,
+      behavior: OpenResolvedTabBehavior,
+      placement: PanelTabPlacement,
+    ) => {
+      const replacedNewTabId =
+        behavior === "replace-new-tab"
+          ? latestSecondaryTabsRef.current.find((tab) => tab.kind === "new-tab")
+              ?.id
+          : undefined;
+      store.set(mainPaneTabsAtom, (current) => {
+        const replaced =
+          replacedNewTabId === undefined
+            ? current
+            : replaceMainPaneTab(current, replacedNewTabId, tabId);
+        return placement === "main"
+          ? moveTabToMainPane(replaced, tabId)
+          : moveTabToRightPanel(replaced, tabId);
+      });
+    },
+    [mainPaneTabsAtom, store],
+  );
 
   const openResolvedTab = useCallback(
     (
       request: OpenSecondaryPanelTabRequest,
       behavior: OpenResolvedTabBehavior,
       viewer?: FileOpenerOverride,
+      requestedPlacement?: PanelTabPlacement,
     ): SecondaryPanelTab | null => {
       const openerTab = createFileOpenerTabForRequest({
         fileOpeners,
@@ -489,19 +593,30 @@ export function useThreadFileTabs({
         recordRecentItem({ source: "thread-storage", path: request.tab.path });
       }
 
+      const placement = resolveTabPlacement(
+        tab.id,
+        behavior,
+        requestedPlacement,
+      );
+      placeOpenedTab(tab.id, behavior, placement);
       updateFixedPanelTabsState((state) => {
-        if (behavior === "replace-new-tab") {
-          return replaceNewTabWithSecondaryPanelTabInState({ state, tab });
-        }
-        return openSecondaryPanelTabInState({ state, tab });
+        const next =
+          behavior === "replace-new-tab"
+            ? replaceNewTabWithSecondaryPanelTabInState({ state, tab })
+            : openSecondaryPanelTabInState({ state, tab });
+        return placement === "main"
+          ? keepRightPanelSelection(state, next)
+          : next;
       });
       return tab;
     },
     [
       fileOpenerPreference,
       fileOpeners,
+      placeOpenedTab,
       projectHostId,
       recordRecentItem,
+      resolveTabPlacement,
       projectId,
       resolvedEnvironmentId,
       resolvedFileOwnerThreadId,
@@ -513,15 +628,22 @@ export function useThreadFileTabs({
   const openTab = useCallback(
     (
       request: OpenSecondaryPanelTabRequest,
-      options?: { viewer?: FileOpenerOverride },
+      options?: OpenSecondaryPanelTabOptions,
     ): SecondaryPanelTab | null => {
       return openResolvedTab(
         request,
         request.kind === "browser" ? "replace-new-tab" : "open",
         options?.viewer,
+        options?.placement,
       );
     },
     [openResolvedTab],
+  );
+
+  const getTabPlacement = useCallback(
+    (tabId: string): PanelTabPlacement =>
+      store.get(mainPaneTabsAtom).tabIds.includes(tabId) ? "main" : "panel",
+    [mainPaneTabsAtom, store],
   );
 
   const activateTab = useCallback(
@@ -620,7 +742,13 @@ export function useThreadFileTabs({
   );
 
   const openPluginPanel = useCallback(
-    ({ pluginId, actionId, title, paramsJson }: OpenPluginPanelArgs) => {
+    ({
+      pluginId,
+      actionId,
+      title,
+      paramsJson,
+      placement: requestedPlacement,
+    }: OpenPluginPanelArgs) => {
       const tab = createPluginPanelFixedPanelTab({
         actionId,
         paramsJson,
@@ -630,25 +758,25 @@ export function useThreadFileTabs({
       if (recentlyClosedPanelContextKey !== null) {
         forgetClosedPanelTab(recentlyClosedPanelContextKey, tab.id);
       }
+      const placement = resolveTabPlacement(
+        tab.id,
+        "replace-new-tab",
+        requestedPlacement,
+      );
+      placeOpenedTab(tab.id, "replace-new-tab", placement);
       updateFixedPanelTabsState((state) => {
-        const existing = findSecondaryPanelTab(state.secondary.tabs, tab.id);
-        if (existing !== null && existing.kind === "plugin-panel") {
-          const withTitle =
-            existing.title === title
-              ? state
-              : updateSecondaryPanelTabInState({
-                  state,
-                  tab: { ...existing, title },
-                });
-          return replaceNewTabWithSecondaryPanelTabInState({
-            state: withTitle,
-            tab: existing,
-          });
-        }
-        return replaceNewTabWithSecondaryPanelTabInState({ state, tab });
+        const next = openPluginPanelTabInState(state, tab);
+        return placement === "main"
+          ? keepRightPanelSelection(state, next)
+          : next;
       });
     },
-    [recentlyClosedPanelContextKey, updateFixedPanelTabsState],
+    [
+      placeOpenedTab,
+      recentlyClosedPanelContextKey,
+      resolveTabPlacement,
+      updateFixedPanelTabsState,
+    ],
   );
 
   const selectFileSearchResult = useCallback(
@@ -759,6 +887,7 @@ export function useThreadFileTabs({
     browserTabs,
     clearActiveFileTabs,
     closeTab,
+    getTabPlacement,
     openPluginPanel,
     openTab,
     orderedSecondaryFileTabs,

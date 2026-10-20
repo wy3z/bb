@@ -86,7 +86,10 @@ import { useServerConnectionState } from "@/hooks/useServerConnectionState";
 import { wsManager } from "@/lib/ws";
 import { pluginSdkSettingsQueryKey } from "@/hooks/queries/query-keys";
 import { useAppNavigationHost } from "@/lib/app-navigation-host";
-import { normalizeExperimentalFileOpenOptions } from "@/lib/live-file-navigation";
+import {
+  normalizeExperimentalFileOpenOptions,
+  normalizeExperimentalFilePreviewOpenOptions,
+} from "@/lib/live-file-navigation";
 import {
   getPluginFixedTabOwnerId,
   useAppFixedTabTarget,
@@ -425,14 +428,27 @@ export function useBbNavigate(): BbNavigate {
     [openThreadPanelHandler, pluginId],
   );
   const openUrl = useCallback<BbNavigate["openUrl"]>(
-    (url) => appNavigation.openUrl({ url }),
+    (url, options) => {
+      const placement = options?.experimental_placement;
+      if (
+        placement !== undefined &&
+        placement !== "main" &&
+        placement !== "panel"
+      ) {
+        return false;
+      }
+      return appNavigation.openUrl({
+        url,
+        ...(placement === undefined ? {} : { placement }),
+      });
+    },
     [appNavigation],
   );
   const experimental_openFilePreview = useCallback<
     BbNavigate["experimental_openFilePreview"]
   >(
     (options) => {
-      const normalized = normalizeExperimentalFileOpenOptions(options);
+      const normalized = normalizeExperimentalFilePreviewOpenOptions(options);
       return normalized !== null && appNavigation.openFilePreview(normalized);
     },
     [appNavigation],

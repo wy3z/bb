@@ -8,16 +8,26 @@ import {
 import { isRoutePath } from "@/lib/route-paths";
 import { openUrlInExternalBrowser } from "@/lib/url-open-routing";
 import type { BrowserAddressFocusRequest } from "./BrowserTabContent";
-import type { OpenSecondaryPanelTabRequest } from "./useThreadFileTabs";
+import type {
+  OpenSecondaryPanelTabOptions,
+  OpenSecondaryPanelTabRequest,
+} from "./useThreadFileTabs";
+import type { PanelTabPlacement } from "./threadMainPaneTabs";
 
 interface UsePanelBrowserArgs {
   available: boolean;
   browserTabs: readonly { id: string }[];
+  getTabPlacement?: (tabId: string) => PanelTabPlacement;
   isFocused: boolean;
   openTab: (
     request: OpenSecondaryPanelTabRequest,
+    options?: OpenSecondaryPanelTabOptions,
   ) => { id: string; kind: string } | null;
   reveal: () => void;
+}
+
+export interface PanelBrowserOpenOptions {
+  placement?: PanelTabPlacement;
 }
 
 export interface PanelBrowser {
@@ -25,7 +35,7 @@ export interface PanelBrowser {
   handleAddressFocusRequestConsumed: (
     request: BrowserAddressFocusRequest,
   ) => void;
-  open: ((url?: string) => void) | null;
+  open: ((url?: string, options?: PanelBrowserOpenOptions) => void) | null;
   openUrl: (url: string) => boolean;
 }
 
@@ -56,6 +66,7 @@ export function subscribeDesktopOpenRequests(
 export function usePanelBrowser({
   available,
   browserTabs,
+  getTabPlacement,
   isFocused,
   openTab,
   reveal,
@@ -65,17 +76,22 @@ export function usePanelBrowser({
   const [openLinksInAppBrowser] = useOpenLinksInAppBrowserPreference();
 
   const openInAppBrowser = useCallback(
-    (url = "") => {
-      const tab = openTab({ kind: "browser", url });
+    (url = "", options?: PanelBrowserOpenOptions) => {
+      const tab = openTab(
+        { kind: "browser", url },
+        options?.placement === undefined
+          ? undefined
+          : { placement: options.placement },
+      );
       if (url.length === 0 && tab?.kind === "browser") {
         setAddressFocusRequest((current) => ({
           requestId: (current?.requestId ?? 0) + 1,
           tabId: tab.id,
         }));
       }
-      reveal();
+      if (tab === null || getTabPlacement?.(tab.id) !== "main") reveal();
     },
-    [openTab, reveal],
+    [getTabPlacement, openTab, reveal],
   );
 
   const openUrl = useCallback(

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { SecondaryFileFixedPanelTab } from "@/lib/fixed-panel-tabs-state";
+import type { PanelTabPlacement } from "./threadMainPaneTabs";
 
 export interface MarketplacePluginDetailPanelTab {
   id: string;
@@ -18,6 +19,7 @@ export type SecondaryPanelTabReorderHandler = (
 export interface SecondaryPanelPaneRenderContext {
   isFocused: boolean;
   onFocusPane: () => void;
+  placement: PanelTabPlacement;
 }
 
 export interface SecondaryPanelRenderableTab {

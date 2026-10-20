@@ -12,9 +12,16 @@ import {
   openUrlByPreference,
   useOpenLinksInAppBrowserPreference,
 } from "@/lib/in-app-browser-link-preference";
-import { AppNavigationHostProvider } from "@/lib/app-navigation-host";
+import {
+  AppNavigationHostProvider,
+  type AppUrlOpenIntent,
+} from "@/lib/app-navigation-host";
+import type { PanelTabPlacement } from "@/components/secondary-panel/threadMainPaneTabs";
 
-type OpenInAppBrowserUrl = (url: string) => void;
+type OpenInAppBrowserUrl = (
+  url: string,
+  options?: { placement?: PanelTabPlacement },
+) => void;
 
 interface UrlOpenRoutingProviderProps {
   children: ReactNode;
@@ -55,7 +62,10 @@ export function UrlOpenRoutingProvider({
 export function AppNavigationUrlHost({ children }: { children: ReactNode }) {
   const openUrl = useOpenUrlByPreference();
   const capabilities = useMemo(
-    () => ({ openUrl: ({ url }: { url: string }) => openUrl(url) }),
+    () => ({
+      openUrl: ({ url, placement }: AppUrlOpenIntent) =>
+        openUrl(url, placement),
+    }),
     [openUrl],
   );
   return (
@@ -65,18 +75,28 @@ export function AppNavigationUrlHost({ children }: { children: ReactNode }) {
   );
 }
 
-function useOpenUrlByPreference(): (url: string) => boolean {
+function useOpenUrlByPreference(): (
+  url: string,
+  placement?: PanelTabPlacement,
+) => boolean {
   const openInAppBrowser = useContext(InAppBrowserUrlOpenContext);
   const [openLinksInAppBrowser] = useOpenLinksInAppBrowserPreference();
   const desktopBrowserAvailable =
     openInAppBrowser !== null && isDesktopBrowserAvailable();
 
   return useCallback(
-    (url: string) =>
+    (url: string, placement?: PanelTabPlacement) =>
       openUrlByPreference({
         desktopBrowserAvailable,
         openExternalBrowser: openUrlInExternalBrowser,
-        openInAppBrowser: openInAppBrowser ?? openUrlInExternalBrowser,
+        openInAppBrowser:
+          openInAppBrowser === null
+            ? openUrlInExternalBrowser
+            : (inAppUrl) =>
+                openInAppBrowser(
+                  inAppUrl,
+                  placement === undefined ? undefined : { placement },
+                ),
         openLinksInAppBrowser,
         url,
       }),

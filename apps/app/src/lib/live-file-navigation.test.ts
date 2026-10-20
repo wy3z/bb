@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeExperimentalFileOpenOptions,
+  normalizeExperimentalFilePreviewOpenOptions,
   normalizeExperimentalLiveFileTarget,
   toFilePreviewLineRange,
 } from "./live-file-navigation";
@@ -143,5 +144,47 @@ describe("normalizeExperimentalFileOpenOptions", () => {
     expect(
       toFilePreviewLineRange({ kind: "line", line: 42, column: 7 }),
     ).toEqual({ startLineNumber: 42, endLineNumber: 42 });
+  });
+});
+
+describe("normalizeExperimentalFilePreviewOpenOptions", () => {
+  const target = {
+    kind: "workspace",
+    environmentId: "env_1",
+    path: "src/app.tsx",
+  } as const;
+
+  it("keeps a known placement and omits an absent one", () => {
+    expect(
+      normalizeExperimentalFilePreviewOpenOptions({
+        target,
+        location: null,
+        experimental_placement: "main",
+      }),
+    ).toEqual({ target, location: null, experimental_placement: "main" });
+    expect(
+      normalizeExperimentalFilePreviewOpenOptions({ target, location: null }),
+    ).toEqual({ target, location: null });
+  });
+
+  it.each(["side", null, 1])("rejects placement %s", (placement) => {
+    expect(
+      normalizeExperimentalFilePreviewOpenOptions({
+        target,
+        location: null,
+        experimental_placement: placement,
+      }),
+    ).toBeNull();
+  });
+
+  it("still rejects unknown keys", () => {
+    expect(
+      normalizeExperimentalFilePreviewOpenOptions({
+        target,
+        location: null,
+        experimental_placement: "main",
+        extra: true,
+      }),
+    ).toBeNull();
   });
 });

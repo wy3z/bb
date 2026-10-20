@@ -957,7 +957,22 @@ export interface PluginPanelActionOpenOptions {
    * Must be a JSON value; anything else is a declined open.
    */
   params?: JsonValue;
+  /**
+   * Where a thread surface shows the tab (see
+   * {@link ExperimentalPanelTabPlacement}). Default `"panel"`. Surfaces
+   * without a main pane ignore it. Experimental: see docs/api_to_audit.md.
+   */
+  experimental_placement?: ExperimentalPanelTabPlacement;
 }
+
+/**
+ * Where a thread shows one of its panel tabs. `"panel"` is the right panel.
+ * `"main"` is the thread pane's own tab strip, beside the conversation: the
+ * same tab, owned by the same thread, drawn where the chat is. Users move a
+ * tab between the two from its context menu; the choice is device-local, like
+ * the right panel's split layout. Experimental: see docs/api_to_audit.md.
+ */
+export type ExperimentalPanelTabPlacement = "main" | "panel";
 
 /**
  * Context handed to a `threadPanelAction`'s `run`.
@@ -3777,6 +3792,25 @@ export interface ExperimentalFileOpenOptions {
   location: ExperimentalFileLocation | null;
 }
 
+/** Options for opening a live file in BB's preview. */
+export interface ExperimentalFilePreviewOpenOptions extends ExperimentalFileOpenOptions {
+  /**
+   * Where a thread surface shows the preview tab. Default `"panel"`.
+   * Experimental: see docs/api_to_audit.md.
+   */
+  experimental_placement?: ExperimentalPanelTabPlacement;
+}
+
+/** Options for opening a URL with BB's browser preference. */
+export interface ExperimentalUrlOpenOptions {
+  /**
+   * Where a thread surface shows the browser tab when the URL opens in BB's
+   * browser. Default `"panel"`; ignored when the URL opens externally.
+   * Experimental: see docs/api_to_audit.md.
+   */
+  experimental_placement?: ExperimentalPanelTabPlacement;
+}
+
 /**
  * Props for BB's host-rendered semantic file link. Valid targets receive a
  * scheme-safe anchor href; traversal paths, ill-formed Unicode, and other
@@ -3875,9 +3909,11 @@ export interface BbNavigate {
    * false for schemes the host does not own. Experimental: see
    * docs/api_to_audit.md.
    */
-  openUrl(url: string): boolean;
+  openUrl(url: string, options?: ExperimentalUrlOpenOptions): boolean;
   /** Open a live file in this surface's shared BB preview panel. */
-  experimental_openFilePreview(options: ExperimentalFileOpenOptions): boolean;
+  experimental_openFilePreview(
+    options: ExperimentalFilePreviewOpenOptions,
+  ): boolean;
   /** Open a live file in this client's preferred external file target. */
   experimental_openFileExternally(
     options: ExperimentalFileOpenOptions,

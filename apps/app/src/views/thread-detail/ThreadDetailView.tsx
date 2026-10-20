@@ -235,6 +235,7 @@ import { useThreadOpenFileSignal } from "@/components/secondary-panel/useThreadO
 import type { PromptMentionLinkResolver } from "@/components/promptbox/editor/prompt-mention-link";
 import type {
   SecondaryPanelFixedTab,
+  SecondaryPanelPaneRenderContext,
   SecondaryPanelRenderableTab,
 } from "@/components/secondary-panel/ThreadSecondaryPanel";
 import { useEnvironmentMergeBase } from "@/components/secondary-panel/git-diff/useEnvironmentMergeBase";
@@ -656,6 +657,7 @@ function ThreadDetailViewInternal(
     clearActiveFileTabs,
     activateTab,
     closeTab,
+    getTabPlacement,
     openTab,
     openPluginPanel,
     orderedSecondaryFileTabs,
@@ -674,6 +676,7 @@ function ThreadDetailViewInternal(
   const panelBrowser = usePanelBrowser({
     available: isDesktopBrowserAvailable(),
     browserTabs,
+    getTabPlacement,
     isFocused,
     openTab,
     reveal: secondaryPanelDrawerVisibility.openDrawer,
@@ -1427,6 +1430,10 @@ function ThreadDetailViewInternal(
     openCompactDrawer();
     setShouldAutoFocusNewTab(true);
   }, [openCompactDrawer, openNewTab]);
+  const handleOpenMainPaneNewTab = useCallback(() => {
+    openTab({ kind: "new-tab" }, { placement: "main" });
+    setShouldAutoFocusNewTab(true);
+  }, [openTab]);
   useAppCommandHandler("panel.newTab", () => {
     if (!isFocused) return false;
     handleOpenNewTab();
@@ -2476,7 +2483,10 @@ function ThreadDetailViewInternal(
   );
   const renderSecondaryTabContent = (
     tab: SecondaryFileFixedPanelTab,
+    pane?: SecondaryPanelPaneRenderContext,
   ): ReactNode => {
+    const isMainPaneTab = pane?.placement === "main";
+    const isTabSurfaceOpen = isMainPaneTab || isSecondaryPanelOpen;
     switch (tab.kind) {
       case "browser":
         return null;
@@ -2487,7 +2497,7 @@ function ThreadDetailViewInternal(
               tab.id === activeFixedSecondaryTabId &&
               tab.terminalId === terminals.autoFocusTerminalId
             }
-            isPanelOpen={isSecondaryPanelOpen}
+            isPanelOpen={isTabSurfaceOpen}
             isPanelPersistedOpen={isPersistedSecondaryPanelOpen}
             onAutoFocusHandled={terminals.handleAutoFocusHandled}
             onOpenLink={handleOpenTimelineLink}
@@ -2500,7 +2510,8 @@ function ThreadDetailViewInternal(
         return (
           <LazyNewTabPage
             autoFocus={
-              tab.id === activeFixedSecondaryTabId && shouldAutoFocusNewTab
+              (isMainPaneTab || tab.id === activeFixedSecondaryTabId) &&
+              shouldAutoFocusNewTab
             }
             projectId={projectId ?? undefined}
             environmentId={thread.environmentId ?? null}
@@ -2508,7 +2519,7 @@ function ThreadDetailViewInternal(
             onAutoFocusHandled={handleNewTabAutoFocusHandled}
             onSelect={handleSelectFileSearchResult}
             onOpenBrowser={() => {
-              activateTab(tab.id);
+              if (!isMainPaneTab) activateTab(tab.id);
               openBrowser?.();
             }}
             onStartTerminal={
@@ -2532,7 +2543,7 @@ function ThreadDetailViewInternal(
             activePath={tab.path}
             copyPath={copyPath}
             environmentId={tab.environmentId}
-            isPanelOpen={isSecondaryPanelOpen}
+            isPanelOpen={isTabSurfaceOpen}
             lineRange={tab.lineRange}
             markdownLinkRouting={buildMarkdownPreviewLinkRouting({
               baseDir: copyPath
@@ -2557,7 +2568,7 @@ function ThreadDetailViewInternal(
             activePath={tab.path}
             copyPath={tab.path}
             environmentId={tab.environmentId}
-            isPanelOpen={isSecondaryPanelOpen}
+            isPanelOpen={isTabSurfaceOpen}
             lineRange={tab.lineRange}
             markdownLinkRouting={buildMarkdownPreviewLinkRouting({
               baseDir,
@@ -2578,7 +2589,7 @@ function ThreadDetailViewInternal(
       case "attachment-file-preview":
         return (
           <LazyAttachmentFilePreviewTabContent
-            isPanelOpen={isSecondaryPanelOpen}
+            isPanelOpen={isTabSurfaceOpen}
             name={tab.name}
             onSelectionAddToChat={handleSelectionAddToChat}
             path={tab.path}
@@ -2594,7 +2605,7 @@ function ThreadDetailViewInternal(
           <LazyThreadStorageFilePreviewTabContent
             activePath={tab.path}
             copyPath={copyPath}
-            isPanelOpen={isSecondaryPanelOpen}
+            isPanelOpen={isTabSurfaceOpen}
             lineRange={tab.lineRange}
             markdownLinkRouting={buildMarkdownPreviewLinkRouting({
               baseDir: copyPath
@@ -2651,7 +2662,8 @@ function ThreadDetailViewInternal(
           (tab.fileOpenerOwner !== undefined ||
             pluginAction?.layout === "flush"),
         onClose: () => closeTab(tab.id),
-        renderContent: () => renderSecondaryTabContent(tab),
+        renderContent: (pane: SecondaryPanelPaneRenderContext) =>
+          renderSecondaryTabContent(tab, pane),
         tab,
       };
       switch (tab.kind) {
@@ -2848,6 +2860,7 @@ function ThreadDetailViewInternal(
               onOpenFileInEditor: handleOpenFileInEditor,
               onTabReorder: reorderTab,
               onOpenNewTab: handleOpenNewTab,
+              onOpenMainPaneNewTab: handleOpenMainPaneNewTab,
               onRetryGitDiffEligibility: () => {
                 void environmentQuery.refetch();
               },

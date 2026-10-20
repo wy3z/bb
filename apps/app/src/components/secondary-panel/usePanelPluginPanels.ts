@@ -30,7 +30,7 @@ export function usePanelPluginPanels({
   slot,
 }: UsePanelPluginPanelsArgs): PluginThreadPanelOpenHandler {
   const openThreadPanel = useCallback<PluginThreadPanelOpenHandler>(
-    ({ pluginId, actionId, title, params }) => {
+    ({ pluginId, actionId, title, params, experimental_placement }) => {
       const action = actions.find(
         (candidate) =>
           candidate.pluginId === pluginId && candidate.id === actionId,
@@ -40,8 +40,14 @@ export function usePanelPluginPanels({
         action,
         slot,
         openPluginPanel,
-      })({ title, params });
-      if (accepted) reveal();
+      })({
+        title,
+        params,
+        ...(experimental_placement === undefined
+          ? {}
+          : { experimental_placement }),
+      });
+      if (accepted && experimental_placement !== "main") reveal();
       return accepted;
     },
     [actions, openPluginPanel, reveal, slot],

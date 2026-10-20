@@ -1,4 +1,4 @@
-import { useMemo, type ComponentProps, type ReactNode } from "react";
+import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import { Skeleton } from "@bb/shared-ui/skeleton";
 import { cn } from "@bb/shared-ui/lib/utils";
 import {
@@ -14,6 +14,12 @@ import {
   type ThreadMetadataContentProps,
 } from "@/components/secondary-panel/ThreadMetadataContent";
 import { DETAIL_GRID_CLASS } from "@/components/ui/detail-card.js";
+import {
+  ThreadMainPaneFrame,
+  ThreadMainPaneHostContext,
+  type ThreadMainPaneHost,
+} from "@/components/secondary-panel/threadMainPaneHost";
+import { useThreadMainPaneTabs } from "@/components/secondary-panel/threadMainPaneTabs";
 import { useThreads } from "@/hooks/queries/thread-queries";
 import { ThreadTimelinePane } from "./ThreadTimelinePane";
 import { useOptionalPaneContext } from "./PaneContext";
@@ -81,6 +87,24 @@ function ThreadDetailSecondaryContentBody({
   const paneContext = useOptionalPaneContext();
   const composerHost = usePluginComposerHost();
   const { renderBrowserDeck, ...threadSecondaryPanelProps } = secondaryPanel;
+  const [mainPaneStripElement, setMainPaneStripElement] =
+    useState<HTMLElement | null>(null);
+  const [mainPaneContentElement, setMainPaneContentElement] =
+    useState<HTMLElement | null>(null);
+  const mainPaneTabs = useThreadMainPaneTabs(timeline.threadId);
+  const isMainPaneVisible =
+    !(isSecondaryPanelOpen && isConversationCollapsed) &&
+    (paneContext === null ||
+      paneContext.secondaryPanelHost === null ||
+      paneContext.isFocused);
+  const mainPaneHost = useMemo<ThreadMainPaneHost>(
+    () => ({
+      contentElement: mainPaneContentElement,
+      isVisible: isMainPaneVisible,
+      stripElement: mainPaneStripElement,
+    }),
+    [isMainPaneVisible, mainPaneContentElement, mainPaneStripElement],
+  );
 
   const forksQuery = useThreads(
     {
@@ -127,7 +151,14 @@ function ThreadDetailSecondaryContentBody({
         drawerFallback={<ThreadMetadataLoadingSkeleton />}
         mainPanelId="thread-detail-timeline-panel"
         mainHeader={header}
-        main={<ThreadTimelinePane {...timeline} footer={footer} />}
+        main={
+          <ThreadMainPaneFrame
+            onContentElement={setMainPaneContentElement}
+            onStripElement={setMainPaneStripElement}
+          >
+            <ThreadTimelinePane {...timeline} footer={footer} />
+          </ThreadMainPaneFrame>
+        }
         collapse={{
           active: isConversationCollapsed,
           onToggle: onToggleConversationCollapse,
@@ -141,27 +172,33 @@ function ThreadDetailSecondaryContentBody({
           onToggleMainCollapse,
           resizablePanelId,
         }) => (
-          <LazyThreadSecondaryPanel
-            {...threadSecondaryPanelProps}
-            drawerFallback={<ThreadMetadataLoadingSkeleton />}
-            renderBrowserDeck={(activeBrowserTabId, pane) =>
-              renderBrowserDeck?.({
-                activeBrowserTabId,
-                canHandleBrowserCommands:
-                  canShowNativeBrowserView && pane.isFocused,
-                canShowNativeBrowserView,
-                onNativeFocus: pane.onFocusPane,
-              })
-            }
-            renderAsDrawer={presentation === "drawer"}
-            isConversationCollapsed={
-              presentation === "inline" && isMainCollapsed
-            }
-            onToggleConversationCollapse={onToggleMainCollapse}
-            resizablePanelId={resizablePanelId}
-            isAtWindowTop={paneContext?.isTopRow !== false}
-            metadataContent={metadataContent}
-          />
+          <ThreadMainPaneHostContext.Provider value={mainPaneHost}>
+            <LazyThreadSecondaryPanel
+              {...threadSecondaryPanelProps}
+              drawerFallback={<ThreadMetadataLoadingSkeleton />}
+              hasMainPaneTabs={mainPaneTabs.tabIds.length > 0}
+              renderBrowserDeck={(activeBrowserTabId, pane) => {
+                const canShowView =
+                  pane.placement === "main"
+                    ? mainPaneHost.isVisible
+                    : canShowNativeBrowserView;
+                return renderBrowserDeck?.({
+                  activeBrowserTabId,
+                  canHandleBrowserCommands: canShowView && pane.isFocused,
+                  canShowNativeBrowserView: canShowView,
+                  onNativeFocus: pane.onFocusPane,
+                });
+              }}
+              renderAsDrawer={presentation === "drawer"}
+              isConversationCollapsed={
+                presentation === "inline" && isMainCollapsed
+              }
+              onToggleConversationCollapse={onToggleMainCollapse}
+              resizablePanelId={resizablePanelId}
+              isAtWindowTop={paneContext?.isTopRow !== false}
+              metadataContent={metadataContent}
+            />
+          </ThreadMainPaneHostContext.Provider>
         )}
       />
     </div>

@@ -1048,6 +1048,38 @@ fires after a final unterminated line is emitted.
    session instead of logging the drop. Decide whether the reader should offer
    a fail-closed mode before the signature is a promise.
 
+## Main-pane tab placement (`ExperimentalPanelTabPlacement`, `experimental_placement` on `BbNavigate.openUrl`, `BbNavigate.experimental_openFilePreview`, and `PluginPanelActionOpenOptions`)
+
+A thread's panel tabs can show in the thread pane's own tab strip, beside the
+conversation, instead of the right panel. The tab is the same thread-owned
+panel tab either way: the main pane is a second place to draw a tab group, not
+a second tab store, so closing, persistence and server sync are unchanged.
+`experimental_placement: "main"` opens a browser URL, file preview or plugin
+panel there; `"panel"` (the default) opens or moves it to the right panel.
+A tab already in the main pane stays there when reopened, and a tab opened
+from a main-pane New tab page takes that page's place. Unknown placements are
+declined. Placement is device-local, like the right panel's split layout
+(`bb.thread.mainPaneTabs-<threadId>-1`).
+
+**Core callers.** The tab context menu's "Move to main pane" and "Move to
+right panel", and the main pane's + button, use the same `useThreadFileTabs`
+open path and `threadMainPaneTabs` state that `experimental_placement` reaches
+through `usePanelBrowser`, `usePanelFiles` and `usePanelPluginPanels`.
+
+Docs: Plugin Guide thread side-panel tabs and file navigation surfaces.
+
+**Audit before stabilizing.**
+
+1. Decide whether placement belongs in the server-synced panel state so it
+   follows the thread across devices, as panel tabs do.
+2. Split thread panes host one right panel for the focused pane. Verify what
+   an unfocused pane's main tabs show, and decide whether each pane should
+   draw its own.
+3. Terminals started from a main-pane New tab page still open in the right
+   panel. Decide whether terminal creation should take a placement.
+4. Decide whether dragging a tab between the right panel and the main pane
+   should replace or join the context-menu moves.
+
 ## Live-file navigation (`experimental_FileLink`, `BbNavigate.experimental_openFilePreview`, and `BbNavigate.experimental_openFileExternally`)
 
 **Kept experimental (2026-08-22).** Windows/UNC paths were never verified.

@@ -43,6 +43,7 @@ import {
   type OverflowFadeTone,
 } from "@bb/shared-ui/overflow-fade";
 import { TabPill } from "@/components/ui/tab-pill";
+import { useBrowserDimmingOverlay } from "@/hooks/useBrowserDimmingModal";
 import { useDragClickSuppression } from "@bb/shared-ui/use-drag-click-suppression";
 import { cn } from "@bb/shared-ui/lib/utils";
 import {
@@ -81,9 +82,15 @@ const INITIAL_OVERFLOW_STATE: TabStripOverflowState = {
   canScrollRight: false,
 };
 
+export interface SecondaryPanelTabMoveAction {
+  label: string;
+  onMove: (tabId: string) => void;
+}
+
 export interface SecondaryPanelTabStripProps {
   activeTabId: string | null;
   tabs: readonly SecondaryPanelRenderableTab[];
+  moveAction?: SecondaryPanelTabMoveAction;
   onBeginTabDrag?: (
     tabId: string,
     event: ReactPointerEvent<HTMLElement>,
@@ -118,6 +125,7 @@ interface SortablePanelTabProps {
   activeTabRef: RefObject<HTMLDivElement | null>;
   contextMenuDisabled: boolean;
   dragDisabled: boolean;
+  moveAction: SecondaryPanelTabMoveAction | undefined;
   noDragClass: string | null;
   onCloseTabs: (tabId: string, scope: SecondaryPanelTabCloseScope) => void;
   tabs: readonly SecondaryPanelRenderableTab[];
@@ -131,6 +139,7 @@ interface SortablePanelTabProps {
 export function SecondaryPanelTabStrip({
   activeTabId,
   tabs,
+  moveAction,
   onBeginTabDrag,
   onReorderTab,
   usesDesktopChrome,
@@ -402,6 +411,7 @@ export function SecondaryPanelTabStrip({
               contextMenuDisabled={isCompactViewport}
               dragDisabled={dragDisabled}
               isActive={tab.tab.id === activeTabId}
+              moveAction={moveAction}
               noDragClass={noDragClass}
               onBeginTabDrag={onBeginTabDrag}
               onCloseTabs={handleCloseTabs}
@@ -503,6 +513,7 @@ function SortablePanelTab({
   contextMenuDisabled,
   dragDisabled,
   isActive,
+  moveAction,
   noDragClass,
   onBeginTabDrag,
   onCloseTabs,
@@ -533,6 +544,8 @@ function SortablePanelTab({
     [transform, transition],
   );
 
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+  useBrowserDimmingOverlay(isContextMenuOpen);
   const tabId = tab.tab.id;
   const canCloseSelf =
     secondaryPanelTabsToClose(tabs, tabId, "self").length > 0;
@@ -542,7 +555,7 @@ function SortablePanelTab({
     secondaryPanelTabsToClose(tabs, tabId, "right").length > 0;
 
   return (
-    <ContextMenu modal={false}>
+    <ContextMenu modal={false} onOpenChange={setIsContextMenuOpen}>
       <ContextMenuTrigger asChild disabled={contextMenuDisabled}>
         <div
           ref={setTabRef}
@@ -563,6 +576,14 @@ function SortablePanelTab({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent aria-label={`${tab.label} tab actions`}>
+        {moveAction ? (
+          <>
+            <ContextMenuItem onSelect={() => moveAction.onMove(tabId)}>
+              {moveAction.label}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        ) : null}
         <ContextMenuItem
           disabled={!canCloseSelf}
           onSelect={() => onCloseTabs(tabId, "self")}

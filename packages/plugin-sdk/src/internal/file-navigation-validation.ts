@@ -1,7 +1,9 @@
 import type {
   ExperimentalFileLocation,
   ExperimentalFileOpenOptions,
+  ExperimentalFilePreviewOpenOptions,
   ExperimentalLiveFileTarget,
+  ExperimentalPanelTabPlacement,
 } from "../app-contract.js";
 
 const FILE_PATH_MAX_LENGTH = 32_768;
@@ -203,4 +205,24 @@ export function normalizeExperimentalFileOpenOptions(
   const location = normalizeExperimentalFileLocation(value.location);
   if (target === null || location === undefined) return null;
   return { target, location };
+}
+
+function normalizeExperimentalPanelTabPlacement(
+  value: unknown,
+): ExperimentalPanelTabPlacement | null {
+  return value === "main" || value === "panel" ? value : null;
+}
+
+export function normalizeExperimentalFilePreviewOpenOptions(
+  value: unknown,
+): ExperimentalFilePreviewOpenOptions | null {
+  if (!isJsonObject(value)) return null;
+  if (!Object.prototype.hasOwnProperty.call(value, "experimental_placement")) {
+    return normalizeExperimentalFileOpenOptions(value);
+  }
+  const { experimental_placement: placementValue, ...options } = value;
+  const placement = normalizeExperimentalPanelTabPlacement(placementValue);
+  const normalized = normalizeExperimentalFileOpenOptions(options);
+  if (placement === null || normalized === null) return null;
+  return { ...normalized, experimental_placement: placement };
 }

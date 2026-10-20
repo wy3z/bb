@@ -68,6 +68,41 @@ describe.each(SURFACES)("panel plugin tabs on the $name", (surface) => {
     expect(reveal).toHaveBeenCalledTimes(1);
   });
 
+  it("passes a main placement through without revealing the right panel", () => {
+    const { openPluginPanel, openThreadPanel, reveal } = renderSurface(surface);
+
+    expect(
+      openThreadPanel({
+        pluginId: "demo",
+        actionId: "board",
+        experimental_placement: "main",
+      }),
+    ).toBe(true);
+    expect(openPluginPanel).toHaveBeenCalledWith({
+      pluginId: "demo",
+      actionId: "board",
+      title: "Board",
+      paramsJson: null,
+      placement: "main",
+    });
+    expect(reveal).not.toHaveBeenCalled();
+  });
+
+  it("declines an unknown placement", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { openPluginPanel, openThreadPanel, reveal } = renderSurface(surface);
+
+    expect(
+      openThreadPanel({
+        pluginId: "demo",
+        actionId: "board",
+        experimental_placement: "side" as "main",
+      }),
+    ).toBe(false);
+    expect(openPluginPanel).not.toHaveBeenCalled();
+    expect(reveal).not.toHaveBeenCalled();
+  });
+
   it("declines unknown actions and non-JSON params without revealing", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { openPluginPanel, openThreadPanel, reveal } = renderSurface(surface);

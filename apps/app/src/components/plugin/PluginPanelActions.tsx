@@ -1,5 +1,8 @@
 import { useMemo, type ReactNode } from "react";
-import type { PluginPanelActionOpenOptions } from "@get-bb/plugin-sdk";
+import type {
+  ExperimentalPanelTabPlacement,
+  PluginPanelActionOpenOptions,
+} from "@get-bb/plugin-sdk";
 import { EmptyStatePanel } from "@bb/shared-ui/empty-state";
 import { usePluginFrontendsSettled } from "@/lib/plugin-frontend-boot-state";
 import {
@@ -25,6 +28,7 @@ export interface OpenPluginPanelArgs {
   actionId: string;
   title: string;
   paramsJson: string | null;
+  placement?: ExperimentalPanelTabPlacement;
 }
 
 export type OpenPluginPanelHandler = (args: OpenPluginPanelArgs) => void;
@@ -64,11 +68,23 @@ export function createPanelActionOpenPanel({
       );
       return false;
     }
+    const placement = options?.experimental_placement;
+    if (
+      placement !== undefined &&
+      placement !== "main" &&
+      placement !== "panel"
+    ) {
+      console.warn(
+        `[plugin:${action.pluginId}] ${slot} "${action.id}" openPanel declined: unknown placement`,
+      );
+      return false;
+    }
     openPluginPanel({
       pluginId: action.pluginId,
       actionId: action.id,
       title: options?.title ?? action.title,
       paramsJson,
+      ...(placement === undefined ? {} : { placement }),
     });
     return true;
   };

@@ -37,6 +37,7 @@ const secondaryPanelMockState = vi.hoisted(() => ({
         pane: {
           isFocused: boolean;
           onFocusPane: () => void;
+          placement: "main" | "panel";
         },
       ) => ReactNode)
     | undefined,
@@ -68,10 +69,13 @@ vi.mock("jotai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("jotai")>();
   return {
     ...actual,
-    useAtomValue: (atom: Parameters<typeof actual.useAtomValue>[0]) =>
-      secondaryPanelMockState.renderActualPanel
-        ? actual.useAtomValue(atom)
-        : 50,
+    useAtomValue: (atom: Parameters<typeof actual.useAtomValue>[0]) => {
+      const value: unknown = actual.useAtomValue(atom);
+      return secondaryPanelMockState.renderActualPanel ||
+        typeof value !== "number"
+        ? value
+        : 50;
+    },
   };
 });
 
@@ -458,6 +462,7 @@ describe("ThreadDetailSecondaryContent", () => {
     panelBrowserDeck("browser-split", {
       isFocused: true,
       onFocusPane,
+      placement: "panel",
     });
     expect(renderBrowserDeck).toHaveBeenLastCalledWith({
       activeBrowserTabId: "browser-split",
@@ -469,11 +474,59 @@ describe("ThreadDetailSecondaryContent", () => {
     panelBrowserDeck("browser-split", {
       isFocused: false,
       onFocusPane,
+      placement: "panel",
     });
     expect(renderBrowserDeck).toHaveBeenLastCalledWith({
       activeBrowserTabId: "browser-split",
       canHandleBrowserCommands: false,
       canShowNativeBrowserView: true,
+      onNativeFocus: onFocusPane,
+    });
+  });
+
+  it("hides a main pane browser while the right panel fills the pane", async () => {
+    const renderBrowserDeck = vi.fn(() => null);
+    const props = createProps();
+    props.isConversationCollapsed = true;
+    props.secondaryPanel.renderBrowserDeck = renderBrowserDeck;
+
+    render(
+      <MemoryRouter>
+        <DefaultPaneContextProvider onRequestClose={null} navigateInPane={noop}>
+          <CompactViewportOverrideProvider isCompactViewport={false}>
+            <ThreadDetailSecondaryContent {...props} />
+          </CompactViewportOverrideProvider>
+        </DefaultPaneContextProvider>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("inline-secondary-panel");
+    const panelBrowserDeck = secondaryPanelMockState.renderBrowserDeck;
+    expect(panelBrowserDeck).toBeDefined();
+    if (panelBrowserDeck === undefined) return;
+
+    const onFocusPane = vi.fn();
+    panelBrowserDeck("browser-main", {
+      isFocused: true,
+      onFocusPane,
+      placement: "panel",
+    });
+    expect(renderBrowserDeck).toHaveBeenLastCalledWith({
+      activeBrowserTabId: "browser-main",
+      canHandleBrowserCommands: true,
+      canShowNativeBrowserView: true,
+      onNativeFocus: onFocusPane,
+    });
+
+    panelBrowserDeck("browser-main", {
+      isFocused: true,
+      onFocusPane,
+      placement: "main",
+    });
+    expect(renderBrowserDeck).toHaveBeenLastCalledWith({
+      activeBrowserTabId: "browser-main",
+      canHandleBrowserCommands: false,
+      canShowNativeBrowserView: false,
       onNativeFocus: onFocusPane,
     });
   });

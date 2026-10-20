@@ -368,6 +368,51 @@ describe("SidebarSplitContainer", () => {
     expect(document.querySelectorAll("[data-split-pane-id]")).toHaveLength(2);
   });
 
+  it("shows the selected tab again when it returns from another surface", async () => {
+    function Harness() {
+      const [isAway, setIsAway] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setIsAway((away) => !away)}>
+            Toggle tab-b
+          </button>
+          <SidebarSplitContainer
+            activeTabId="tab-b"
+            isFullScreen={false}
+            onActivateTab={vi.fn()}
+            onGlobalTabReorder={vi.fn()}
+            onToggleFullScreen={vi.fn()}
+            panelStateId={PANEL_STATE_ID}
+            renderPane={({ group, paneId }) => (
+              <div data-testid={`active-tab-${paneId}`}>
+                {group.activeTabId}
+              </div>
+            )}
+            tabs={isAway ? [TABS[0] as SidebarSplitTabDescriptor] : TABS}
+          />
+        </>
+      );
+    }
+
+    render(
+      <SidebarProvider>
+        <TooltipProvider>
+          <Harness />
+        </TooltipProvider>
+      </SidebarProvider>,
+    );
+    const toggle = screen.getByRole("button", { name: "Toggle tab-b" });
+    expect(screen.getByTestId(/active-tab-/).textContent).toBe("tab-b");
+    fireEvent.click(toggle);
+    await waitFor(() =>
+      expect(screen.getByTestId(/active-tab-/).textContent).toBe("tab-a"),
+    );
+    fireEvent.click(toggle);
+    await waitFor(() =>
+      expect(screen.getByTestId(/active-tab-/).textContent).toBe("tab-b"),
+    );
+  });
+
   it("appends a transient launcher instead of restoring its removed position", async () => {
     const launcher: SidebarSplitTabDescriptor = {
       id: "new-tab",

@@ -1,11 +1,11 @@
 import { renderHookStatically } from "@/test/render-hook-statically";
 import { describe, expect, it, vi } from "vitest";
 import type { ExperimentalLiveFileTarget } from "@get-bb/plugin-sdk";
-import {
-  usePanelFiles,
-  type PanelFileScope,
-} from "./usePanelFiles";
-import type { OpenSecondaryPanelTabRequest } from "./useThreadFileTabs";
+import { usePanelFiles, type PanelFileScope } from "./usePanelFiles";
+import type {
+  OpenSecondaryPanelTabOptions,
+  OpenSecondaryPanelTabRequest,
+} from "./useThreadFileTabs";
 
 interface SurfaceCase {
   name: string;
@@ -71,9 +71,12 @@ const SURFACES: readonly SurfaceCase[] = [
 ];
 
 function renderSurface(surface: SurfaceCase, available = true) {
-  const openTab = vi.fn((_request: OpenSecondaryPanelTabRequest) => ({
-    id: "tab",
-  }));
+  const openTab = vi.fn(
+    (
+      _request: OpenSecondaryPanelTabRequest,
+      _options?: OpenSecondaryPanelTabOptions,
+    ) => ({ id: "tab" }),
+  );
   const reveal = vi.fn();
   const panelFiles = renderHookStatically(() =>
     usePanelFiles({ available, openTab, reveal, scope: surface.scope }),
@@ -110,6 +113,23 @@ describe.each(SURFACES)("panel files on the $name", (surface) => {
         ? { ...coreRequest, hostId: OWN_HOST.hostId }
         : coreRequest,
     );
+  });
+
+  it("opens a main pane preview without revealing the right panel", () => {
+    if (!surface.accepts.ownWorkspace) return;
+    const { openTab, panelFiles, reveal } = renderSurface(surface);
+    expect(
+      panelFiles.openFilePreview({
+        target: OWN_WORKSPACE,
+        location: null,
+        experimental_placement: "main",
+      }),
+    ).toBe(true);
+    expect(openTab).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "workspace-file-preview" }),
+      { placement: "main" },
+    );
+    expect(reveal).not.toHaveBeenCalled();
   });
 
   it("declines malformed targets and unavailable surfaces", () => {

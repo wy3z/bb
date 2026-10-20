@@ -2,16 +2,19 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type {
   ExperimentalAppPanelSurface,
   ExperimentalFileOpenOptions,
+  ExperimentalFilePreviewOpenOptions,
+  ExperimentalPanelTabPlacement,
   JsonValue,
 } from "@get-bb/plugin-sdk";
 import type { TerminalSession } from "@bb/server-contract";
 import type { FileOpenerOverride } from "@/lib/plugin-slot-resolvers";
 
-interface AppUrlOpenIntent {
+export interface AppUrlOpenIntent {
   url: string;
+  placement?: ExperimentalPanelTabPlacement;
 }
 
-export interface AppFilePreviewIntent extends ExperimentalFileOpenOptions {
+export interface AppFilePreviewIntent extends ExperimentalFilePreviewOpenOptions {
   viewer?: FileOpenerOverride;
 }
 

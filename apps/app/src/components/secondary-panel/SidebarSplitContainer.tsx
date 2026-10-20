@@ -175,7 +175,9 @@ export function SidebarSplitContainer({
     const previousAvailableTabs = previousTabs.current;
     const previousAvailable = previousAvailableTabs.map((tab) => tab.id);
     const shouldFollowExternalSelection =
-      previousExternalActiveTabId !== activeTabId;
+      previousExternalActiveTabId !== activeTabId ||
+      (!previousAvailable.includes(activeTabId) &&
+        availableTabIds.includes(activeTabId));
     previousActiveTabId.current = activeTabId;
     previousTabs.current = tabs;
     const current = stateRef.current;
@@ -373,7 +375,9 @@ export function SidebarSplitContainer({
     next?.scrollIntoView({ block: "nearest" });
     return true;
   };
-  useAppCommandHandler("panel.previousNewTabItem", () => navigateNewTabItem(-1));
+  useAppCommandHandler("panel.previousNewTabItem", () =>
+    navigateNewTabItem(-1),
+  );
   useAppCommandHandler("panel.nextNewTabItem", () => navigateNewTabItem(1));
 
   const focusPane = useCallback(

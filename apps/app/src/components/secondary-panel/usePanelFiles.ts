@@ -9,8 +9,10 @@ import {
   normalizeExperimentalFileOpenOptions,
   toFilePreviewLineRange,
 } from "@/lib/live-file-navigation";
-import type { FileOpenerOverride } from "@/lib/plugin-slot-resolvers";
-import type { OpenSecondaryPanelTabRequest } from "./useThreadFileTabs";
+import type {
+  OpenSecondaryPanelTabOptions,
+  OpenSecondaryPanelTabRequest,
+} from "./useThreadFileTabs";
 
 export interface PanelFileScope {
   threadId: string | null;
@@ -18,9 +20,7 @@ export interface PanelFileScope {
   hostId: string | null;
 }
 
-interface PanelFileOpenOptions {
-  viewer?: FileOpenerOverride;
-}
+type PanelFileOpenOptions = OpenSecondaryPanelTabOptions;
 
 interface UsePanelFilesArgs {
   available: boolean;
@@ -127,14 +127,15 @@ export function usePanelFiles({
   const openFilePreview = useCallback(
     (intent: AppFilePreviewIntent) => {
       if (!available) return false;
-      const request = livePreviewRequest(intent, scope);
+      const { experimental_placement: placement, viewer, ...file } = intent;
+      const request = livePreviewRequest(file, scope);
       if (request === null) return false;
-      const tab = openTab(
-        request,
-        intent.viewer === undefined ? undefined : { viewer: intent.viewer },
-      );
+      const tab = openTab(request, {
+        ...(placement === undefined ? {} : { placement }),
+        ...(viewer === undefined ? {} : { viewer }),
+      });
       if (tab === null) return false;
-      reveal();
+      if (placement !== "main") reveal();
       return true;
     },
     [available, openTab, reveal, scope],
