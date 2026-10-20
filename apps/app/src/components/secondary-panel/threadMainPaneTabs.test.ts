@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   adoptTabsIntoMainPane,
   EMPTY_THREAD_MAIN_PANE_TABS,
+  getMainPaneAgentTabId,
+  getMainPaneAgentThreadId,
   MAIN_PANE_NEW_AGENT_TAB_ID,
   moveTabToMainPane,
   moveTabToRightPanel,
   reconcileMainPaneTabs,
   reorderMainPaneTab,
   replaceMainPaneTab,
+  selectMainPaneAgentTab,
   selectMainPaneTab,
   type ThreadMainPaneTabsState,
 } from "./threadMainPaneTabs";
@@ -92,6 +95,40 @@ describe("thread main pane tabs", () => {
     const withDraft = moveTabToMainPane(TWO_TABS, MAIN_PANE_NEW_AGENT_TAB_ID);
     expect(reconcileMainPaneTabs(withDraft, ["browser-a", "file-b"])).toBe(
       withDraft,
+    );
+  });
+
+  it("builds and reads agent tab ids", () => {
+    const agentTabId = getMainPaneAgentTabId("thread-a");
+    expect(agentTabId).toBe("main-pane:agent:thread-a");
+    expect(getMainPaneAgentThreadId(agentTabId)).toBe("thread-a");
+    expect(getMainPaneAgentThreadId(MAIN_PANE_NEW_AGENT_TAB_ID)).toBeNull();
+    expect(getMainPaneAgentThreadId("browser-a")).toBeNull();
+    expect(getMainPaneAgentThreadId(null)).toBeNull();
+    expect(getMainPaneAgentThreadId("main-pane:agent:")).toBeNull();
+  });
+
+  it("selects an agent without adding it to the tab ids", () => {
+    const onAgent = selectMainPaneAgentTab(TWO_TABS, "thread-a");
+    expect(onAgent).toEqual({
+      tabIds: ["browser-a", "file-b"],
+      activeTabId: "main-pane:agent:thread-a",
+    });
+    expect(selectMainPaneAgentTab(onAgent, "thread-a")).toBe(onAgent);
+    expect(selectMainPaneAgentTab(onAgent, null)).toEqual({
+      tabIds: ["browser-a", "file-b"],
+      activeTabId: null,
+    });
+  });
+
+  it("keeps an agent tab selected while panel tabs come and go", () => {
+    const onAgent = selectMainPaneAgentTab(TWO_TABS, "thread-a");
+    expect(reconcileMainPaneTabs(onAgent, [])).toEqual({
+      tabIds: [],
+      activeTabId: "main-pane:agent:thread-a",
+    });
+    expect(reconcileMainPaneTabs(onAgent, ["browser-a", "file-b"])).toBe(
+      onAgent,
     );
   });
 

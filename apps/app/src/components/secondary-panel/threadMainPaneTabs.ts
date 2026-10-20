@@ -14,6 +14,25 @@ export type PanelTabPlacement = "main" | "panel";
 
 export const MAIN_PANE_NEW_AGENT_TAB_ID = "main-pane:new-agent";
 
+const MAIN_PANE_AGENT_TAB_PREFIX = "main-pane:agent:";
+
+export function getMainPaneAgentTabId(threadId: string): string {
+  return `${MAIN_PANE_AGENT_TAB_PREFIX}${threadId}`;
+}
+
+export function isMainPaneAgentTabId(tabId: string): boolean {
+  return tabId.startsWith(MAIN_PANE_AGENT_TAB_PREFIX);
+}
+
+export function getMainPaneAgentThreadId(
+  tabId: string | null | undefined,
+): string | null {
+  if (tabId === null || tabId === undefined) return null;
+  if (!isMainPaneAgentTabId(tabId)) return null;
+  const threadId = tabId.slice(MAIN_PANE_AGENT_TAB_PREFIX.length);
+  return threadId.length === 0 ? null : threadId;
+}
+
 export interface ThreadMainPaneTabsState {
   tabIds: readonly string[];
   activeTabId: string | null;
@@ -36,10 +55,12 @@ function normalizeMainPaneTabs(
 ): ThreadMainPaneTabsState {
   const tabIds = [...new Set(state.tabIds)];
   const activeTabId =
-    state.activeTabId !== null && tabIds.includes(state.activeTabId)
+    state.activeTabId !== null &&
+    (tabIds.includes(state.activeTabId) ||
+      isMainPaneAgentTabId(state.activeTabId))
       ? state.activeTabId
       : null;
-  return tabIds.length === 0
+  return tabIds.length === 0 && activeTabId === null
     ? EMPTY_THREAD_MAIN_PANE_TABS
     : { tabIds, activeTabId };
 }
@@ -115,8 +136,24 @@ export function selectMainPaneTab(
   state: ThreadMainPaneTabsState,
   tabId: string | null,
 ): ThreadMainPaneTabsState {
-  if (tabId !== null && !state.tabIds.includes(tabId)) return state;
+  if (
+    tabId !== null &&
+    !state.tabIds.includes(tabId) &&
+    !isMainPaneAgentTabId(tabId)
+  ) {
+    return state;
+  }
   return state.activeTabId === tabId ? state : { ...state, activeTabId: tabId };
+}
+
+export function selectMainPaneAgentTab(
+  state: ThreadMainPaneTabsState,
+  threadId: string | null,
+): ThreadMainPaneTabsState {
+  return selectMainPaneTab(
+    state,
+    threadId === null ? null : getMainPaneAgentTabId(threadId),
+  );
 }
 
 export function reorderMainPaneTab(
@@ -135,11 +172,13 @@ export function reconcileMainPaneTabs(
   availableTabIds: readonly string[],
 ): ThreadMainPaneTabsState {
   const available = new Set([...availableTabIds, MAIN_PANE_NEW_AGENT_TAB_ID]);
-  const tabIds = state.tabIds.filter((tabId) => available.has(tabId));
+  const isAvailable = (tabId: string) =>
+    available.has(tabId) || isMainPaneAgentTabId(tabId);
+  const tabIds = state.tabIds.filter(isAvailable);
   if (tabIds.length === state.tabIds.length) return state;
-  const removedIndex = state.tabIds.findIndex((tabId) => !available.has(tabId));
+  const removedIndex = state.tabIds.findIndex((tabId) => !isAvailable(tabId));
   const activeTabId =
-    state.activeTabId !== null && !available.has(state.activeTabId)
+    state.activeTabId !== null && !isAvailable(state.activeTabId)
       ? (tabIds[Math.max(0, removedIndex - 1)] ?? null)
       : state.activeTabId;
   return normalizeMainPaneTabs({ tabIds, activeTabId });

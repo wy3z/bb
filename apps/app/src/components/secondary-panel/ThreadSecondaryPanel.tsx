@@ -55,11 +55,14 @@ import {
 import { useThreadMainPaneHost } from "./threadMainPaneHost";
 import {
   adoptTabsIntoMainPane,
+  getMainPaneAgentTabId,
+  getMainPaneAgentThreadId,
   MAIN_PANE_NEW_AGENT_TAB_ID,
   moveTabToMainPane,
   moveTabToRightPanel,
   reconcileMainPaneTabs,
   reorderMainPaneTab,
+  selectMainPaneAgentTab,
   selectMainPaneTab,
   useThreadMainPaneTabs,
   useUpdateThreadMainPaneTabs,
@@ -243,6 +246,7 @@ export interface MainPaneAgentTab {
   isCurrent: boolean;
   label: string;
   leadingVisual: ReactNode;
+  onOpen: () => void;
   onSelect: () => void;
   title: string;
 }
@@ -286,6 +290,7 @@ export interface ThreadSecondaryPanelProps {
   onOpenNewTab: () => void;
   mainPaneActions?: MainPaneActions;
   mainPaneAgentTabs?: readonly MainPaneAgentTab[];
+  renderMainPaneAgentChat?: (threadId: string) => ReactNode;
   renderMainPaneNewAgent?: () => ReactNode;
   pendingGitDiffCommitSha?: string | null;
   pendingGitDiffScrollPath?: string | null;
@@ -331,6 +336,7 @@ function ThreadSecondaryPanelContent({
   keepsFilesInMainPane = false,
   mainPaneActions,
   mainPaneAgentTabs,
+  renderMainPaneAgentChat,
   renderMainPaneNewAgent,
   onRetryGitDiffEligibility,
   pendingGitDiffCommitSha,
@@ -1292,9 +1298,17 @@ function ThreadSecondaryPanelContent({
   const isNewAgentActive =
     hasNewAgentDraft &&
     mainPaneTabsState.activeTabId === MAIN_PANE_NEW_AGENT_TAB_ID;
-  const isChatActive = activeMainSurfaceTabId === null && !isNewAgentActive;
+  const activeAgentThreadId = getMainPaneAgentThreadId(
+    mainPaneTabsState.activeTabId,
+  );
+  const isChatActive =
+    activeMainSurfaceTabId === null &&
+    !isNewAgentActive &&
+    activeAgentThreadId === null;
   const selectChat = () =>
     updateMainPaneTabs((state) => selectMainPaneTab(state, null));
+  const selectAgent = (threadId: string) =>
+    updateMainPaneTabs((state) => selectMainPaneAgentTab(state, threadId));
   const showsMainPaneStrip =
     isMainPaneEnabled &&
     (mainPaneAgentTabs !== undefined ||
@@ -1302,7 +1316,7 @@ function ThreadSecondaryPanelContent({
       hasNewAgentDraft);
   const mainPaneStripTargets: readonly (() => void)[] = [
     ...(mainPaneAgentTabs?.map((agent) =>
-      agent.isCurrent ? selectChat : agent.onSelect,
+      agent.isCurrent ? selectChat : () => selectAgent(agent.id),
     ) ?? [selectChat]),
     ...mainSurfaceTabs.map((tab) => tab.onSelect),
     ...(hasNewAgentDraft
@@ -1360,8 +1374,18 @@ function ThreadSecondaryPanelContent({
                       labelMaxWidthClass="max-w-[160px]"
                       leadingVisual={agent.leadingVisual}
                       title={agent.title}
-                      isActive={agent.isCurrent && isChatActive}
-                      onSelect={agent.isCurrent ? selectChat : agent.onSelect}
+                      isActive={
+                        agent.isCurrent
+                          ? isChatActive
+                          : mainPaneTabsState.activeTabId ===
+                            getMainPaneAgentTabId(agent.id)
+                      }
+                      onSelect={
+                        agent.isCurrent
+                          ? selectChat
+                          : () => selectAgent(agent.id)
+                      }
+                      onDoubleClick={agent.onOpen}
                       closeAction={null}
                     />
                   </div>
@@ -1413,6 +1437,20 @@ function ThreadSecondaryPanelContent({
             ) : null}
           </div>,
           mainPaneHost.stripElement,
+        )
+      : null;
+  const mainPaneAgentContent =
+    mainPaneHost?.contentElement &&
+    activeAgentThreadId !== null &&
+    renderMainPaneAgentChat
+      ? createPortal(
+          <div
+            data-thread-main-pane-surface=""
+            className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+          >
+            {renderMainPaneAgentChat(activeAgentThreadId)}
+          </div>,
+          mainPaneHost.contentElement,
         )
       : null;
   const mainPaneNewAgentContent =
@@ -1506,6 +1544,7 @@ function ThreadSecondaryPanelContent({
     <>
       {mainPaneStrip}
       {mainPaneContent}
+      {mainPaneAgentContent}
       {mainPaneNewAgentContent}
       <SecondaryPanelResizeHandle
         isOpen={isOpen}

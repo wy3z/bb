@@ -33,6 +33,7 @@ interface TabPillProps {
   title: string;
   isActive: boolean;
   onSelect: () => void;
+  onDoubleClick?: () => void;
   labelMaxWidthClass?: string;
   closeAction: TabPillCloseAction | null;
   enlargeCloseTargetOnCoarsePointer?: boolean;
@@ -49,6 +50,7 @@ export function TabPill({
   title,
   isActive,
   onSelect,
+  onDoubleClick,
   labelMaxWidthClass = TAB_PILL_DEFAULT_LABEL_MAX_WIDTH_CLASS,
   closeAction,
   enlargeCloseTargetOnCoarsePointer = false,
@@ -76,6 +78,7 @@ export function TabPill({
       <button
         type="button"
         onClick={onSelect}
+        onDoubleClick={onDoubleClick}
         aria-label={ariaLabel}
         aria-keyshortcuts={ariaKeyshortcuts}
         aria-pressed={isActive}

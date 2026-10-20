@@ -288,11 +288,13 @@ import { useRouteState } from "@/hooks/useRouteState";
 import { useAppCommandHandler } from "@/components/commands/AppCommandProvider";
 import { usePaneContext } from "./PaneContext";
 import { MainPaneNewAgent } from "./MainPaneNewAgent";
+import { LazyPluginThreadChat } from "@/components/plugin/LazyPluginThreadChat";
 import { useThreadWorkspaceThreads } from "@/components/secondary-panel/threadWorkspace";
 import {
   MAIN_PANE_NEW_AGENT_TAB_ID,
   moveTabToMainPane,
   moveTabToRightPanel,
+  selectMainPaneAgentTab,
   useUpdateThreadMainPaneTabs,
 } from "@/components/secondary-panel/threadMainPaneTabs";
 import { ThreadStatusGlyph } from "@/components/thread/ThreadStatusGlyph";
@@ -1547,6 +1549,10 @@ function ThreadDetailViewInternal(
                 />
               ),
               onSelect: () =>
+                updateMainPaneTabs((state) =>
+                  selectMainPaneAgentTab(state, entry.id),
+                ),
+              onOpen: () =>
                 navigateInPane({
                   projectId: entry.projectId,
                   threadId: entry.id,
@@ -1554,7 +1560,13 @@ function ThreadDetailViewInternal(
               title,
             };
           }),
-    [navigateInPane, renderSecondaryPanelAsDrawer, threadId, workspaceThreads],
+    [
+      navigateInPane,
+      renderSecondaryPanelAsDrawer,
+      threadId,
+      updateMainPaneTabs,
+      workspaceThreads,
+    ],
   );
   const mainPaneActions = useMemo<MainPaneActions>(
     () => ({
@@ -1577,6 +1589,16 @@ function ThreadDetailViewInternal(
       terminals,
       updateMainPaneTabs,
     ],
+  );
+  const renderMainPaneAgentChat = useCallback(
+    (agentThreadId: string) => (
+      <LazyPluginThreadChat
+        threadId={agentThreadId}
+        variant="compact"
+        layout="contained"
+      />
+    ),
+    [],
   );
   const renderMainPaneNewAgent = useCallback(
     () =>
@@ -2991,6 +3013,7 @@ function ThreadDetailViewInternal(
               keepsFilesInMainPane: !renderSecondaryPanelAsDrawer,
               mainPaneActions,
               mainPaneAgentTabs,
+              renderMainPaneAgentChat,
               renderMainPaneNewAgent,
               onRetryGitDiffEligibility: () => {
                 void environmentQuery.refetch();
