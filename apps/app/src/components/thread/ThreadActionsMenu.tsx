@@ -27,6 +27,7 @@ import {
 } from "@bb/shared-ui/dropdown-menu";
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { CompactLongPressMenu } from "@bb/shared-ui/compact-long-press-menu";
+import { useBrowserDimmingOverlay } from "@/hooks/useBrowserDimmingModal";
 import {
   ThreadActionMenuRows,
   useThreadActionMenuGroups,
@@ -214,6 +215,7 @@ function ThreadActionsDesktopContextMenu({
   dragging = false,
 }: PluginThreadActionsContextMenuProps) {
   const [open, setOpen] = useState(false);
+  useBrowserDimmingOverlay(open);
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen && dragging) return;

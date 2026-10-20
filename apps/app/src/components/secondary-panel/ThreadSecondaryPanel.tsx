@@ -139,8 +139,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bb/shared-ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
+} from "@bb/shared-ui/dropdown-menu";import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import { dispatchBrowserViewBoundsSync } from "@/lib/browser-view-bounds-sync";
 import type { SplitSide } from "@/lib/split-layout";
 import { PaneArrangementButton } from "@/views/thread-detail/PaneMaximizeButton";
@@ -244,6 +243,7 @@ export interface SecondaryPanelFixedTab {
 }
 
 export interface MainPaneAgentTab {
+  contextMenu?: (children: ReactNode) => ReactNode;
   id: string;
   isCurrent: boolean;
   label: string;
@@ -1391,8 +1391,8 @@ function ThreadSecondaryPanelContent({
                 className="flex shrink-0 items-center gap-1"
                 data-thread-main-pane-agents=""
               >
-                {mainPaneAgentTabs.map((agent) => (
-                  <div key={agent.id} className="shrink-0">
+                {mainPaneAgentTabs.map((agent) => {
+                  const pill = (
                     <TabPill
                       label={agent.label}
                       labelMaxWidthClass="max-w-[160px]"
@@ -1412,8 +1412,15 @@ function ThreadSecondaryPanelContent({
                       onDoubleClick={agent.onOpen}
                       closeAction={null}
                     />
-                  </div>
-                ))}
+                  );
+                  return (
+                    <div key={agent.id} className="shrink-0">
+                      {agent.contextMenu === undefined
+                        ? pill
+                        : agent.contextMenu(pill)}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {mainSurfaceTabs.length > 0 ? (

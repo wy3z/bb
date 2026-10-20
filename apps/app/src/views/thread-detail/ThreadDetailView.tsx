@@ -92,7 +92,10 @@ import { RouteLoadingSkeleton } from "@/components/ui/route-loading-skeleton";
 import { ThreadTimelineLoadingSkeleton } from "@/components/thread/timeline/ThreadTimelineLoadingSkeleton";
 import { HEADER_ICON_BUTTON_CLASS } from "@/components/layout/AppPageHeader";
 import type { PluginThreadActionsInlineItem } from "@get-bb/plugin-sdk";
-import { ThreadActionsMenu } from "@/components/thread/ThreadActionsMenu";
+import {
+  ThreadActionsContextMenu,
+  ThreadActionsMenu,
+} from "@/components/thread/ThreadActionsMenu";
 import { toThreadActionTarget } from "@/lib/thread-actions/thread-action-target";
 import { Button } from "@bb/shared-ui/button";
 import { COARSE_POINTER_ICON_SIZE_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
@@ -2491,6 +2494,35 @@ function ThreadDetailViewInternal(
     ...responsiveWorkspaceActions,
     ...responsiveGitActions,
   ];
+  const [renameRequestKey, setRenameRequestKey] = useState(0);
+  const requestHeaderRename = useCallback(() => {
+    setRenameRequestKey((key) => key + 1);
+  }, []);
+  const headerMainPaneAgentTabs = useMemo(
+    () =>
+      mainPaneAgentTabs?.map((agent) =>
+        agent.isCurrent
+          ? {
+              ...agent,
+              contextMenu: (children: ReactNode) => (
+                <ThreadActionsContextMenu
+                  inline={responsiveHeaderActions}
+                  requestRename={requestHeaderRename}
+                  thread={threadActionTarget}
+                >
+                  <div>{children}</div>
+                </ThreadActionsContextMenu>
+              ),
+            }
+          : agent,
+      ),
+    [
+      mainPaneAgentTabs,
+      requestHeaderRename,
+      responsiveHeaderActions,
+      threadActionTarget,
+    ],
+  );
   const workspaceOpenButton =
     workspaceOpenPath && preferredDirectoryTarget ? (
       <ThreadWorkspaceOpenButton
@@ -2514,42 +2546,42 @@ function ThreadDetailViewInternal(
     ) : undefined;
   const timelineHeader = (
     <ThreadDetailHeader
-      actionsMenu={({
-        includeResponsiveActions,
-        requestRename,
-        onCloseAutoFocus,
-      }) => (
-        <ThreadActionsMenu
-          thread={threadActionTarget}
-          trigger={(triggerProps) => (
-            <Button
-              {...triggerProps}
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                triggerProps.className,
-                "rounded-md p-0",
-                "data-[state=open]:bg-state-active data-[state=open]:text-foreground",
-                HEADER_ICON_BUTTON_CLASS,
-              )}
-              aria-label="Thread actions"
-              onClick={(event) => {
-                triggerProps.onClick?.(event);
-                event.stopPropagation();
-              }}
-            >
-              <Icon
-                name="MoreHorizontal"
-                className={COARSE_POINTER_ICON_SIZE_CLASS}
+      actionsMenu={
+        mainPaneAgentTabs === undefined
+          ? ({ includeResponsiveActions, requestRename, onCloseAutoFocus }) => (
+              <ThreadActionsMenu
+                thread={threadActionTarget}
+                trigger={(triggerProps) => (
+                  <Button
+                    {...triggerProps}
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      triggerProps.className,
+                      "rounded-md p-0",
+                      "data-[state=open]:bg-state-active data-[state=open]:text-foreground",
+                      HEADER_ICON_BUTTON_CLASS,
+                    )}
+                    aria-label="Thread actions"
+                    onClick={(event) => {
+                      triggerProps.onClick?.(event);
+                      event.stopPropagation();
+                    }}
+                  >
+                    <Icon
+                      name="MoreHorizontal"
+                      className={COARSE_POINTER_ICON_SIZE_CLASS}
+                    />
+                  </Button>
+                )}
+                inline={includeResponsiveActions ? responsiveHeaderActions : []}
+                requestRename={requestRename}
+                onCloseAutoFocus={onCloseAutoFocus}
               />
-            </Button>
-          )}
-          inline={includeResponsiveActions ? responsiveHeaderActions : []}
-          requestRename={requestRename}
-          onCloseAutoFocus={onCloseAutoFocus}
-        />
-      )}
+            )
+          : null
+      }
       isSecondaryPanelOpen={isSecondaryPanelOpen}
       hideTitle={mainPaneAgentTabs !== undefined}
       mainPaneStrip={
@@ -2564,6 +2596,7 @@ function ThreadDetailViewInternal(
           projectId={thread.projectId}
         />
       }
+      renameRequestKey={renameRequestKey}
       threadHeaderGitActions={threadHeaderGitActions}
       threadId={thread.id}
       threadTitle={threadTitle}
@@ -3038,7 +3071,7 @@ function ThreadDetailViewInternal(
               onOpenNewTab: handleOpenNewTab,
               keepsFilesInMainPane: !renderSecondaryPanelAsDrawer,
               mainPaneActions,
-              mainPaneAgentTabs,
+              mainPaneAgentTabs: headerMainPaneAgentTabs,
               renderMainPaneAgentChat,
               renderMainPaneNewAgent,
               onRetryGitDiffEligibility: () => {

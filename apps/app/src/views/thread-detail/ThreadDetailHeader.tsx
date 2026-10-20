@@ -2,6 +2,7 @@ import { preloadThreadSecondaryPanel } from "@/components/secondary-panel/lazySe
 import {
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -70,6 +71,7 @@ interface ThreadDetailHeaderProps {
   onOpenThreadGitAction: (target: ThreadGitActionDialogTarget) => void;
   onToggleSecondaryPanel: () => void;
   pluginActions?: ReactNode;
+  renameRequestKey?: number;
   threadHeaderGitActions: ThreadHeaderGitAction[];
   threadId: string;
   threadTitle: string;
@@ -85,6 +87,7 @@ export function ThreadDetailHeader({
   onOpenThreadGitAction,
   onToggleSecondaryPanel,
   pluginActions,
+  renameRequestKey,
   threadHeaderGitActions,
   threadId,
   threadTitle,
@@ -120,6 +123,12 @@ export function ThreadDetailHeader({
     event.preventDefault();
     startEditing();
   };
+  const handledRenameRequestKey = useRef(renameRequestKey);
+  useEffect(() => {
+    if (renameRequestKey === handledRenameRequestKey.current) return;
+    handledRenameRequestKey.current = renameRequestKey;
+    startEditing();
+  }, [renameRequestKey, startEditing]);
   const [desktopInfo] = useState(getBbDesktopInfo);
   const dimsInactiveSplits = useAtomValue(dimInactiveSplitsAtom);
   const panelShortcut = useAppCommandShortcut("panel.toggle");
