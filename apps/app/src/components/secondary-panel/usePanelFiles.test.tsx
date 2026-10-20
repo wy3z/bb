@@ -70,7 +70,11 @@ const SURFACES: readonly SurfaceCase[] = [
   },
 ];
 
-function renderSurface(surface: SurfaceCase, available = true) {
+function renderSurface(
+  surface: SurfaceCase,
+  available = true,
+  placement: "main" | "panel" = "panel",
+) {
   const openTab = vi.fn(
     (
       _request: OpenSecondaryPanelTabRequest,
@@ -79,7 +83,13 @@ function renderSurface(surface: SurfaceCase, available = true) {
   );
   const reveal = vi.fn();
   const panelFiles = renderHookStatically(() =>
-    usePanelFiles({ available, openTab, reveal, scope: surface.scope }),
+    usePanelFiles({
+      available,
+      getTabPlacement: () => placement,
+      openTab,
+      reveal,
+      scope: surface.scope,
+    }),
   );
   return { openTab, panelFiles, reveal };
 }
@@ -117,7 +127,11 @@ describe.each(SURFACES)("panel files on the $name", (surface) => {
 
   it("opens a main pane preview without revealing the right panel", () => {
     if (!surface.accepts.ownWorkspace) return;
-    const { openTab, panelFiles, reveal } = renderSurface(surface);
+    const { openTab, panelFiles, reveal } = renderSurface(
+      surface,
+      true,
+      "main",
+    );
     expect(
       panelFiles.openFilePreview({
         target: OWN_WORKSPACE,

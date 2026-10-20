@@ -13,6 +13,7 @@ import type {
   OpenSecondaryPanelTabOptions,
   OpenSecondaryPanelTabRequest,
 } from "./useThreadFileTabs";
+import type { PanelTabPlacement } from "./threadMainPaneTabs";
 
 export interface PanelFileScope {
   threadId: string | null;
@@ -24,10 +25,11 @@ type PanelFileOpenOptions = OpenSecondaryPanelTabOptions;
 
 interface UsePanelFilesArgs {
   available: boolean;
+  getTabPlacement?: (tabId: string) => PanelTabPlacement;
   openTab: (
     request: OpenSecondaryPanelTabRequest,
     options?: PanelFileOpenOptions,
-  ) => unknown;
+  ) => { id: string } | null;
   reveal: () => void;
   scope: PanelFileScope | null;
 }
@@ -102,6 +104,7 @@ function livePreviewRequest(
 
 export function usePanelFiles({
   available,
+  getTabPlacement,
   openTab,
   reveal,
   scope,
@@ -135,10 +138,10 @@ export function usePanelFiles({
         ...(viewer === undefined ? {} : { viewer }),
       });
       if (tab === null) return false;
-      if (placement !== "main") reveal();
+      if (getTabPlacement?.(tab.id) !== "main") reveal();
       return true;
     },
-    [available, openTab, reveal, scope],
+    [available, getTabPlacement, openTab, reveal, scope],
   );
   return { openFilePreview, openHostFile, openStorageFile, openWorkspaceFile };
 }

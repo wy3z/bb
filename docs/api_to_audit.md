@@ -1061,10 +1061,19 @@ from a main-pane New tab page takes that page's place. Unknown placements are
 declined. Placement is device-local, like the right panel's split layout
 (`bb.thread.mainPaneTabs-<threadId>-1`).
 
+On the desktop thread view the main pane is also the default for new browser
+and file tabs; a tab already open in the right panel stays there, and plugin
+panels and terminals default to the right panel. The pane's strip lists the
+thread's workspace as agent tabs: top-level threads sharing its worktree, or,
+in a shared checkout, threads started from the pane's New agent (linked per
+device). Its + opens a New agent composer in the workspace's environment, a
+terminal, a browser, or the New tab page there.
+
 **Core callers.** The tab context menu's "Move to main pane" and "Move to
-right panel", and the main pane's + button, use the same `useThreadFileTabs`
-open path and `threadMainPaneTabs` state that `experimental_placement` reaches
-through `usePanelBrowser`, `usePanelFiles` and `usePanelPluginPanels`.
+right panel", the main pane's + menu, and the desktop default placement use
+the same `useThreadFileTabs` and `usePanelTerminals` open paths and
+`threadMainPaneTabs` state that `experimental_placement` reaches through
+`usePanelBrowser`, `usePanelFiles` and `usePanelPluginPanels`.
 
 Docs: Plugin Guide thread side-panel tabs and file navigation surfaces.
 
@@ -1075,9 +1084,13 @@ Docs: Plugin Guide thread side-panel tabs and file navigation surfaces.
 2. Split thread panes host one right panel for the focused pane. Verify what
    an unfocused pane's main tabs show, and decide whether each pane should
    draw its own.
-3. Terminals started from a main-pane New tab page still open in the right
-   panel. Decide whether terminal creation should take a placement.
-4. Decide whether dragging a tab between the right panel and the main pane
+3. Panel tabs belong to one thread, so switching agent tabs swaps the main
+   pane's browser, file and terminal tabs. Decide whether a workspace should
+   own them instead.
+4. Shared-checkout workspace links are device-local. Decide whether they
+   belong in thread data, and whether terminal creation should join the SDK
+   placement option.
+5. Decide whether dragging a tab between the right panel and the main pane
    should replace or join the context-menu moves.
 
 ## Live-file navigation (`experimental_FileLink`, `BbNavigate.experimental_openFilePreview`, and `BbNavigate.experimental_openFileExternally`)

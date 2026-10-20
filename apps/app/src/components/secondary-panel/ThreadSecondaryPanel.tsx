@@ -54,6 +54,7 @@ import {
 } from "./SecondaryPanelTabStrip";
 import { useThreadMainPaneHost } from "./threadMainPaneHost";
 import {
+  MAIN_PANE_NEW_AGENT_TAB_ID,
   moveTabToMainPane,
   moveTabToRightPanel,
   reconcileMainPaneTabs,
@@ -122,6 +123,13 @@ import { useAppCommandShortcut } from "@/components/commands/AppCommandProvider"
 import { AppCommandShortcutHint } from "@/components/commands/AppCommandShortcutHint";
 import type { AppShortcutPresentation } from "@/lib/app-keybindings";
 import { TabPill } from "@/components/ui/tab-pill";
+import { useBrowserDimmingOverlay } from "@/hooks/useBrowserDimmingModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@bb/shared-ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import { dispatchBrowserViewBoundsSync } from "@/lib/browser-view-bounds-sync";
 import type { SplitSide } from "@/lib/split-layout";
@@ -225,6 +233,22 @@ export interface SecondaryPanelFixedTab {
   title: string;
 }
 
+export interface MainPaneAgentTab {
+  id: string;
+  isCurrent: boolean;
+  label: string;
+  leadingVisual: ReactNode;
+  onSelect: () => void;
+  title: string;
+}
+
+export interface MainPaneActions {
+  onBrowser?: () => void;
+  onNewAgent: () => void;
+  onOpenFile: () => void;
+  onTerminal?: () => void;
+}
+
 export interface ThreadSecondaryPanelProps {
   activeTab: SecondaryFixedPanelTab | MarketplacePluginDetailPanelTab | null;
   canUseGitUi: boolean;
@@ -242,7 +266,7 @@ export interface ThreadSecondaryPanelProps {
     pane: SecondaryPanelPaneRenderContext,
   ) => ReactNode;
   splitPanelStateId?: string;
-  hasMainPaneTabs?: boolean;
+  hostsMainPane?: boolean;
   isOpen: boolean;
   showConversationCollapseControl?: boolean;
   showFullScreenShortcut?: boolean;
@@ -254,7 +278,9 @@ export interface ThreadSecondaryPanelProps {
   onClose: () => void;
   onClearPendingGitDiffIntent?: () => void;
   onOpenNewTab: () => void;
-  onOpenMainPaneNewTab?: () => void;
+  mainPaneActions?: MainPaneActions;
+  mainPaneAgentTabs?: readonly MainPaneAgentTab[];
+  renderMainPaneNewAgent?: () => ReactNode;
   pendingGitDiffCommitSha?: string | null;
   pendingGitDiffScrollPath?: string | null;
   workspaceRootPath?: string | null;
@@ -296,7 +322,9 @@ function ThreadSecondaryPanelContent({
   onClose,
   onClearPendingGitDiffIntent,
   onOpenNewTab,
-  onOpenMainPaneNewTab,
+  mainPaneActions,
+  mainPaneAgentTabs,
+  renderMainPaneNewAgent,
   onRetryGitDiffEligibility,
   pendingGitDiffCommitSha,
   pendingGitDiffScrollPath,
@@ -1240,8 +1268,22 @@ function ThreadSecondaryPanelContent({
       tabs.find((tab) => tab.tab.id === tabId)?.onSelect();
     },
   };
+  const hasNewAgentDraft = mainPaneTabsState.tabIds.includes(
+    MAIN_PANE_NEW_AGENT_TAB_ID,
+  );
+  const isNewAgentActive =
+    hasNewAgentDraft &&
+    mainPaneTabsState.activeTabId === MAIN_PANE_NEW_AGENT_TAB_ID;
+  const isChatActive = activeMainSurfaceTabId === null && !isNewAgentActive;
+  const selectChat = () =>
+    updateMainPaneTabs((state) => selectMainPaneTab(state, null));
+  const showsMainPaneStrip =
+    isMainPaneEnabled &&
+    (mainPaneAgentTabs !== undefined ||
+      mainSurfaceTabs.length > 0 ||
+      hasNewAgentDraft);
   const mainPaneStrip =
-    mainPaneHost?.stripElement && mainSurfaceTabs.length > 0
+    mainPaneHost?.stripElement && showsMainPaneStrip
       ? createPortal(
           <div
             role="toolbar"
@@ -1252,49 +1294,99 @@ function ThreadSecondaryPanelContent({
               "min-w-0 gap-1 border-b border-border-seam-vertical/60 px-(--bb-panel-chrome-padding)",
             )}
           >
-            <div className="shrink-0">
-              <TabPill
-                label="Chat"
-                leadingVisual={<Icon name="MessageSquare" />}
-                title="Chat"
-                isActive={activeMainSurfaceTabId === null}
-                onSelect={() =>
-                  updateMainPaneTabs((state) => selectMainPaneTab(state, null))
+            {mainPaneAgentTabs === undefined ? (
+              <div className="shrink-0">
+                <TabPill
+                  label="Chat"
+                  leadingVisual={<Icon name="MessageSquare" />}
+                  title="Chat"
+                  isActive={isChatActive}
+                  onSelect={selectChat}
+                  closeAction={null}
+                />
+              </div>
+            ) : (
+              <div
+                className="flex min-w-0 shrink items-center gap-1"
+                data-thread-main-pane-agents=""
+              >
+                {mainPaneAgentTabs.map((agent) => (
+                  <div key={agent.id} className="min-w-0 shrink">
+                    <TabPill
+                      label={agent.label}
+                      leadingVisual={agent.leadingVisual}
+                      title={agent.title}
+                      isActive={agent.isCurrent && isChatActive}
+                      onSelect={agent.isCurrent ? selectChat : agent.onSelect}
+                      closeAction={null}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            {mainSurfaceTabs.length > 0 ? (
+              <SecondaryPanelTabStrip
+                activeTabId={isNewAgentActive ? null : activeMainSurfaceTabId}
+                tabs={mainSurfaceTabs}
+                moveAction={mainPaneTabMoveAction}
+                onReorderTab={(request) =>
+                  updateMainPaneTabs((state) =>
+                    reorderMainPaneTab(
+                      state,
+                      request.activeTabId,
+                      request.overTabId,
+                    ),
+                  )
                 }
-                closeAction={null}
-              />
-            </div>
-            <SecondaryPanelTabStrip
-              activeTabId={activeMainSurfaceTabId}
-              tabs={mainSurfaceTabs}
-              moveAction={mainPaneTabMoveAction}
-              onReorderTab={(request) =>
-                updateMainPaneTabs((state) =>
-                  reorderMainPaneTab(
-                    state,
-                    request.activeTabId,
-                    request.overTabId,
-                  ),
-                )
-              }
-              usesDesktopChrome={false}
-              isPanelOpen
-            />
-            {onOpenMainPaneNewTab ? (
-              <NewTabButton
-                ariaLabel="Open new tab in main pane"
-                compact={false}
-                onOpenNewTab={onOpenMainPaneNewTab}
-                shortcut={null}
                 usesDesktopChrome={false}
+                isPanelOpen
               />
+            ) : null}
+            {hasNewAgentDraft ? (
+              <div className="shrink-0">
+                <TabPill
+                  label="New agent"
+                  leadingVisual={<Icon name="MessageSquarePlus" />}
+                  title="New agent"
+                  isActive={isNewAgentActive}
+                  onSelect={() =>
+                    updateMainPaneTabs((state) =>
+                      selectMainPaneTab(state, MAIN_PANE_NEW_AGENT_TAB_ID),
+                    )
+                  }
+                  closeAction={{
+                    closeLabel: "Close new agent",
+                    onClose: () =>
+                      updateMainPaneTabs((state) =>
+                        moveTabToRightPanel(state, MAIN_PANE_NEW_AGENT_TAB_ID),
+                      ),
+                  }}
+                />
+              </div>
+            ) : null}
+            {mainPaneActions ? (
+              <MainPaneAddMenu actions={mainPaneActions} />
             ) : null}
           </div>,
           mainPaneHost.stripElement,
         )
       : null;
+  const mainPaneNewAgentContent =
+    mainPaneHost?.contentElement && isNewAgentActive && renderMainPaneNewAgent
+      ? createPortal(
+          <div
+            data-thread-main-pane-surface=""
+            className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+          >
+            {renderMainPaneNewAgent()}
+          </div>,
+          mainPaneHost.contentElement,
+        )
+      : null;
   const mainPaneContent =
-    mainPaneHost?.contentElement && activeMainSurfaceTabId !== null
+    mainPaneHost?.contentElement &&
+    activeMainSurfaceTabId !== null &&
+    !isNewAgentActive
       ? createPortal(
           <div
             data-thread-main-pane-surface=""
@@ -1370,6 +1462,7 @@ function ThreadSecondaryPanelContent({
     <>
       {mainPaneStrip}
       {mainPaneContent}
+      {mainPaneNewAgentContent}
       <SecondaryPanelResizeHandle
         isOpen={isOpen}
         isConversationCollapsed={isConversationCollapsed}
@@ -1463,6 +1556,52 @@ function PinnedIconTab({
       </TooltipTrigger>
       <TooltipContent>{title}</TooltipContent>
     </Tooltip>
+  );
+}
+
+function MainPaneAddMenu({ actions }: { actions: MainPaneActions }) {
+  const [isOpen, setIsOpen] = useState(false);
+  useBrowserDimmingOverlay(isOpen);
+  return (
+    <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(
+            SECONDARY_PANEL_CHROME_ICON_BUTTON_CLASS,
+            "text-muted-foreground/70 hover:text-foreground focus:ring-1 focus:ring-ring",
+          )}
+          aria-label="Add to this workspace"
+          data-thread-main-pane-add=""
+        >
+          <Icon name="Plus" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onSelect={actions.onNewAgent}>
+          <Icon name="MessageSquarePlus" />
+          New agent
+        </DropdownMenuItem>
+        {actions.onTerminal ? (
+          <DropdownMenuItem onSelect={actions.onTerminal}>
+            <Icon name="Terminal" />
+            Terminal
+          </DropdownMenuItem>
+        ) : null}
+        {actions.onBrowser ? (
+          <DropdownMenuItem onSelect={actions.onBrowser}>
+            <Icon name="Globe" />
+            Browser
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem onSelect={actions.onOpenFile}>
+          <Icon name="Search" />
+          Open file
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

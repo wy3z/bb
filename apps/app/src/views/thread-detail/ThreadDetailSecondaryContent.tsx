@@ -19,7 +19,6 @@ import {
   ThreadMainPaneHostContext,
   type ThreadMainPaneHost,
 } from "@/components/secondary-panel/threadMainPaneHost";
-import { useThreadMainPaneTabs } from "@/components/secondary-panel/threadMainPaneTabs";
 import { useThreads } from "@/hooks/queries/thread-queries";
 import { ThreadTimelinePane } from "./ThreadTimelinePane";
 import { useOptionalPaneContext } from "./PaneContext";
@@ -91,7 +90,6 @@ function ThreadDetailSecondaryContentBody({
     useState<HTMLElement | null>(null);
   const [mainPaneContentElement, setMainPaneContentElement] =
     useState<HTMLElement | null>(null);
-  const mainPaneTabs = useThreadMainPaneTabs(timeline.threadId);
   const isMainPaneVisible =
     !(isSecondaryPanelOpen && isConversationCollapsed) &&
     (paneContext === null ||
@@ -176,7 +174,7 @@ function ThreadDetailSecondaryContentBody({
             <LazyThreadSecondaryPanel
               {...threadSecondaryPanelProps}
               drawerFallback={<ThreadMetadataLoadingSkeleton />}
-              hasMainPaneTabs={mainPaneTabs.tabIds.length > 0}
+              hostsMainPane
               renderBrowserDeck={(activeBrowserTabId, pane) => {
                 const canShowView =
                   pane.placement === "main"

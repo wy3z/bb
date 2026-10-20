@@ -139,7 +139,7 @@ const ThreadSecondaryPanelSplit = defineSplit<LazyThreadSecondaryPanelProps>({
         resizablePanelId={props.resizablePanelId}
       />
     ),
-  mountWhen: (props) => props.isOpen || props.hasMainPaneTabs === true,
+  mountWhen: (props) => props.isOpen || props.hostsMainPane === true,
   keepMounted: true,
   tier: "preload",
 });

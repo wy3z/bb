@@ -18,6 +18,7 @@ export type PromptDraftScope =
   | { kind: "automation-edit"; automationId: string }
   | { kind: "new-thread" }
   | { kind: "plugin-new-thread"; key: string }
+  | { kind: "workspace-new-thread"; threadId: string }
   | { kind: "thread"; projectId: string; threadId: string };
 
 interface PromptDraftCacheEntry {
@@ -235,6 +236,10 @@ function getPromptDraftStorageKey(scope: PromptDraftScope): string {
   if (scope.kind === "plugin-new-thread") {
     const normalizedKey = normalizeStorageSegment(scope.key);
     return `${PROMPT_DRAFT_STORAGE_PREFIX}-plugin-draft-${normalizedKey}-${PROMPT_DRAFT_STORAGE_VERSION}`;
+  }
+  if (scope.kind === "workspace-new-thread") {
+    const normalizedThreadId = normalizeStorageSegment(scope.threadId);
+    return `${PROMPT_DRAFT_STORAGE_PREFIX}-workspace-draft-${normalizedThreadId}-${PROMPT_DRAFT_STORAGE_VERSION}`;
   }
   const normalizedProjectId = normalizeStorageSegment(scope.projectId);
   const normalizedThreadId = normalizeStorageSegment(scope.threadId);

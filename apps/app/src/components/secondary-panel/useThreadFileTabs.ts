@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useStore } from "jotai";
 import type {
   TerminalSession,
@@ -81,6 +87,7 @@ import {
 } from "./threadMainPaneTabs";
 
 interface UseThreadFileTabsParams {
+  defaultContentPlacement?: PanelTabPlacement;
   panelStateId: string | null | undefined;
   syncThreadId: string | null | undefined;
   environmentId: string | null | undefined;
@@ -328,6 +335,7 @@ function openPluginPanelTabInState(
 }
 
 export function useThreadFileTabs({
+  defaultContentPlacement = "panel",
   panelStateId,
   syncThreadId,
   environmentId,
@@ -504,13 +512,16 @@ export function useThreadFileTabs({
   const store = useStore();
   const mainPaneTabsAtom = getThreadMainPaneTabsAtom(resolvedPanelStateId);
   const latestSecondaryTabsRef = useRef(fixedPanelTabsState.secondary.tabs);
-  latestSecondaryTabsRef.current = fixedPanelTabsState.secondary.tabs;
+  useLayoutEffect(() => {
+    latestSecondaryTabsRef.current = fixedPanelTabsState.secondary.tabs;
+  }, [fixedPanelTabsState.secondary.tabs]);
 
   const resolveTabPlacement = useCallback(
     (
       tabId: string,
       behavior: OpenResolvedTabBehavior,
       requested: PanelTabPlacement | undefined,
+      isContentTab: boolean,
     ): PanelTabPlacement => {
       if (requested !== undefined) return requested;
       const mainTabIds = store.get(mainPaneTabsAtom).tabIds;
@@ -520,12 +531,18 @@ export function useThreadFileTabs({
           ? latestSecondaryTabsRef.current.find((tab) => tab.kind === "new-tab")
               ?.id
           : undefined;
-      return replacedNewTabId !== undefined &&
+      if (
+        replacedNewTabId !== undefined &&
         mainTabIds.includes(replacedNewTabId)
-        ? "main"
-        : "panel";
+      ) {
+        return "main";
+      }
+      const isAlreadyOpen = latestSecondaryTabsRef.current.some(
+        (tab) => tab.id === tabId,
+      );
+      return isContentTab && !isAlreadyOpen ? defaultContentPlacement : "panel";
     },
-    [mainPaneTabsAtom, store],
+    [defaultContentPlacement, mainPaneTabsAtom, store],
   );
 
   const placeOpenedTab = useCallback(
@@ -597,6 +614,7 @@ export function useThreadFileTabs({
         tab.id,
         behavior,
         requestedPlacement,
+        request.kind !== "new-tab",
       );
       placeOpenedTab(tab.id, behavior, placement);
       updateFixedPanelTabsState((state) => {
@@ -762,6 +780,7 @@ export function useThreadFileTabs({
         tab.id,
         "replace-new-tab",
         requestedPlacement,
+        false,
       );
       placeOpenedTab(tab.id, "replace-new-tab", placement);
       updateFixedPanelTabsState((state) => {

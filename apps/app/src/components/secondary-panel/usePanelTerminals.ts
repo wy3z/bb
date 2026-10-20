@@ -1,8 +1,11 @@
 import { useCallback, useState } from "react";
+import { useStore } from "jotai";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   closeSecondaryPanelTabInState,
   createNewTabFixedPanelTab,
+  createTerminalFixedPanelTab,
+  setSecondaryPanelTabsInState,
 } from "@bb/client-core";
 import type {
   TerminalCreateTarget,
@@ -19,10 +22,16 @@ import {
   useCreateTerminal,
 } from "@/hooks/queries/thread-terminal-queries";
 import {
+  upsertTerminalTab,
   useRemoveFixedRightTerminalTab,
   useSetFixedRightTerminalActiveTerminal,
   useUpdateFixedPanelTabsState,
 } from "@/lib/fixed-panel-tabs";
+import {
+  getThreadMainPaneTabsAtom,
+  moveTabToMainPane,
+  type PanelTabPlacement,
+} from "./threadMainPaneTabs";
 import { isVisibleTerminalSession } from "@/lib/terminal-session-visibility";
 
 interface UsePanelTerminalsArgs {
@@ -44,7 +53,7 @@ export interface PanelTerminals {
   isStarting: boolean;
   open: (session: TerminalSession) => boolean;
   select: (terminalId: string, target?: TerminalCreateTarget) => void;
-  start: () => void;
+  start: (options?: { placement?: PanelTabPlacement }) => void;
 }
 
 export function terminalTargetForSession(
@@ -73,6 +82,7 @@ export function usePanelTerminals({
     null,
   );
   const queryClient = useQueryClient();
+  const store = useStore();
   const createTerminal = useCreateTerminal();
   const { mutateAsync: closeTerminal } = useCloseTerminal();
   const updatePanelState = useUpdateFixedPanelTabsState(
@@ -115,22 +125,56 @@ export function usePanelTerminals({
 
   const isStarting = createTerminal.isPending;
   const canStart = createTarget !== null && !isStarting;
-  const start = useCallback(() => {
-    if (createTarget === null || createTerminal.isPending) return;
-    void createTerminal
-      .mutateAsync({
-        cols: DEFAULT_TERMINAL_COLS,
-        rows: DEFAULT_TERMINAL_ROWS,
-        target: createTarget,
-      })
-      .then((session) => {
-        updatePanelState((state) =>
-          closeSecondaryPanelTabInState(state, createNewTabFixedPanelTab().id),
-        );
-        select(session.id, tabsCarryTarget ? createTarget : undefined);
-      })
-      .catch(() => undefined);
-  }, [createTarget, createTerminal, select, tabsCarryTarget, updatePanelState]);
+  const start = useCallback(
+    (options?: { placement?: PanelTabPlacement }) => {
+      if (createTarget === null || createTerminal.isPending) return;
+      void createTerminal
+        .mutateAsync({
+          cols: DEFAULT_TERMINAL_COLS,
+          rows: DEFAULT_TERMINAL_ROWS,
+          target: createTarget,
+        })
+        .then((session) => {
+          const target = tabsCarryTarget ? createTarget : undefined;
+          updatePanelState((state) =>
+            closeSecondaryPanelTabInState(
+              state,
+              createNewTabFixedPanelTab().id,
+            ),
+          );
+          if (options?.placement !== "main") {
+            select(session.id, target);
+            return;
+          }
+          setAutoFocusTerminalId(session.id);
+          updatePanelState((state) =>
+            setSecondaryPanelTabsInState({
+              state,
+              tabs: upsertTerminalTab(state.secondary.tabs, session.id, target),
+              activeTabId: state.secondary.activeTabId,
+              isOpen: state.secondary.isOpen,
+            }),
+          );
+          store.set(getThreadMainPaneTabsAtom(panelStateId), (current) =>
+            moveTabToMainPane(
+              current,
+              createTerminalFixedPanelTab({ terminalId: session.id, target })
+                .id,
+            ),
+          );
+        })
+        .catch(() => undefined);
+    },
+    [
+      createTarget,
+      createTerminal,
+      panelStateId,
+      select,
+      store,
+      tabsCarryTarget,
+      updatePanelState,
+    ],
+  );
 
   useAppCommandHandler("terminal.open", () => {
     if (!isFocused || !canStart) return false;

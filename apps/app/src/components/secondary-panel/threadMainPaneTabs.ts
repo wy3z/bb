@@ -12,6 +12,8 @@ const THREAD_MAIN_PANE_TABS_STORAGE_VERSION = 1;
 
 export type PanelTabPlacement = "main" | "panel";
 
+export const MAIN_PANE_NEW_AGENT_TAB_ID = "main-pane:new-agent";
+
 export interface ThreadMainPaneTabsState {
   tabIds: readonly string[];
   activeTabId: string | null;
@@ -123,7 +125,7 @@ export function reconcileMainPaneTabs(
   state: ThreadMainPaneTabsState,
   availableTabIds: readonly string[],
 ): ThreadMainPaneTabsState {
-  const available = new Set(availableTabIds);
+  const available = new Set([...availableTabIds, MAIN_PANE_NEW_AGENT_TAB_ID]);
   const tabIds = state.tabIds.filter((tabId) => available.has(tabId));
   if (tabIds.length === state.tabIds.length) return state;
   const removedIndex = state.tabIds.findIndex((tabId) => !available.has(tabId));

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EMPTY_THREAD_MAIN_PANE_TABS,
+  MAIN_PANE_NEW_AGENT_TAB_ID,
   moveTabToMainPane,
   moveTabToRightPanel,
   reconcileMainPaneTabs,
@@ -83,6 +84,13 @@ describe("thread main pane tabs", () => {
     );
     expect(reconcileMainPaneTabs(TWO_TABS, ["info"])).toBe(
       EMPTY_THREAD_MAIN_PANE_TABS,
+    );
+  });
+
+  it("keeps a New agent draft, which is not a panel tab", () => {
+    const withDraft = moveTabToMainPane(TWO_TABS, MAIN_PANE_NEW_AGENT_TAB_ID);
+    expect(reconcileMainPaneTabs(withDraft, ["browser-a", "file-b"])).toBe(
+      withDraft,
     );
   });
 });

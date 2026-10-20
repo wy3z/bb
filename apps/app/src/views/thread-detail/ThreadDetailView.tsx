@@ -234,6 +234,8 @@ import { isSecondaryFileTab } from "@bb/client-core";
 import { useThreadOpenFileSignal } from "@/components/secondary-panel/useThreadOpenFileSignal";
 import type { PromptMentionLinkResolver } from "@/components/promptbox/editor/prompt-mention-link";
 import type {
+  MainPaneActions,
+  MainPaneAgentTab,
   SecondaryPanelFixedTab,
   SecondaryPanelPaneRenderContext,
   SecondaryPanelRenderableTab,
@@ -285,6 +287,19 @@ import {
 import { useRouteState } from "@/hooks/useRouteState";
 import { useAppCommandHandler } from "@/components/commands/AppCommandProvider";
 import { usePaneContext } from "./PaneContext";
+import { MainPaneNewAgent } from "./MainPaneNewAgent";
+import { useThreadWorkspaceThreads } from "@/components/secondary-panel/threadWorkspace";
+import {
+  MAIN_PANE_NEW_AGENT_TAB_ID,
+  moveTabToMainPane,
+  moveTabToRightPanel,
+  useUpdateThreadMainPaneTabs,
+} from "@/components/secondary-panel/threadMainPaneTabs";
+import { ThreadStatusGlyph } from "@/components/thread/ThreadStatusGlyph";
+import {
+  resolveThreadListIndicator,
+  threadListIndicatorStateForThread,
+} from "@bb/client-core";
 import { ThreadArchiveCommandHandler } from "./ThreadArchiveCommandHandler";
 
 const EMPTY_PARENT_THREADS: readonly ThreadListEntry[] = [];
@@ -666,6 +681,7 @@ function ThreadDetailViewInternal(
     selectFileSearchResult,
     updateBrowserTab,
   } = useThreadFileTabs({
+    defaultContentPlacement: renderSecondaryPanelAsDrawer ? "panel" : "main",
     panelStateId: threadId,
     syncThreadId: threadId,
     environmentId: thread?.environmentId,
@@ -744,6 +760,7 @@ function ThreadDetailViewInternal(
   );
   const panelFiles = usePanelFiles({
     available: true,
+    getTabPlacement,
     openTab,
     reveal: secondaryPanelDrawerVisibility.openDrawer,
     scope: {
@@ -1488,6 +1505,86 @@ function ThreadDetailViewInternal(
     reveal: openCompactDrawer,
     onCloseLastTab: secondaryPanelDrawerVisibility.closeDrawer,
   });
+  const workspaceThreads = useThreadWorkspaceThreads(threadId);
+  const updateMainPaneTabs = useUpdateThreadMainPaneTabs(threadId);
+  const mainPaneAgentTabs = useMemo<readonly MainPaneAgentTab[] | undefined>(
+    () =>
+      renderSecondaryPanelAsDrawer ||
+      threadId === undefined ||
+      workspaceThreads.length === 0
+        ? undefined
+        : workspaceThreads.map((entry) => {
+            const title = getThreadDisplayTitle(entry);
+            return {
+              id: entry.id,
+              isCurrent: entry.id === threadId,
+              label: title,
+              leadingVisual: (
+                <ThreadStatusGlyph
+                  indicator={resolveThreadListIndicator(
+                    threadListIndicatorStateForThread(entry, false),
+                  )}
+                  size="compact"
+                />
+              ),
+              onSelect: () =>
+                navigateInPane({
+                  projectId: entry.projectId,
+                  threadId: entry.id,
+                }),
+              title,
+            };
+          }),
+    [navigateInPane, renderSecondaryPanelAsDrawer, threadId, workspaceThreads],
+  );
+  const mainPaneActions = useMemo<MainPaneActions>(
+    () => ({
+      onNewAgent: () =>
+        updateMainPaneTabs((state) =>
+          moveTabToMainPane(state, MAIN_PANE_NEW_AGENT_TAB_ID),
+        ),
+      ...(canCreateTerminal
+        ? { onTerminal: () => terminals.start({ placement: "main" }) }
+        : {}),
+      ...(openBrowser
+        ? { onBrowser: () => openBrowser("", { placement: "main" }) }
+        : {}),
+      onOpenFile: handleOpenMainPaneNewTab,
+    }),
+    [
+      canCreateTerminal,
+      handleOpenMainPaneNewTab,
+      openBrowser,
+      terminals,
+      updateMainPaneTabs,
+    ],
+  );
+  const renderMainPaneNewAgent = useCallback(
+    () =>
+      threadId === undefined || !thread?.environmentId ? null : (
+        <MainPaneNewAgent
+          environmentId={thread.environmentId}
+          projectId={thread.projectId}
+          workspaceThreadId={threadId}
+          onCreated={(created) => {
+            updateMainPaneTabs((state) =>
+              moveTabToRightPanel(state, MAIN_PANE_NEW_AGENT_TAB_ID),
+            );
+            navigateInPane({
+              projectId: created.projectId,
+              threadId: created.id,
+            });
+          }}
+        />
+      ),
+    [
+      navigateInPane,
+      thread?.environmentId,
+      thread?.projectId,
+      threadId,
+      updateMainPaneTabs,
+    ],
+  );
   const appNavigationCapabilities = useMemo(
     () => ({
       openFilePreview: openLiveFilePreview,
@@ -2494,11 +2591,13 @@ function ThreadDetailViewInternal(
         return (
           <LazyThreadTerminalPanel
             autoFocus={
-              tab.id === activeFixedSecondaryTabId &&
+              (isMainPaneTab || tab.id === activeFixedSecondaryTabId) &&
               tab.terminalId === terminals.autoFocusTerminalId
             }
             isPanelOpen={isTabSurfaceOpen}
-            isPanelPersistedOpen={isPersistedSecondaryPanelOpen}
+            isPanelPersistedOpen={
+              isMainPaneTab || isPersistedSecondaryPanelOpen
+            }
             onAutoFocusHandled={terminals.handleAutoFocusHandled}
             onOpenLink={handleOpenTimelineLink}
             onSelectionAddToChat={handleSelectionAddToChat}
@@ -2525,6 +2624,10 @@ function ThreadDetailViewInternal(
             onStartTerminal={
               canCreateTerminal
                 ? () => {
+                    if (isMainPaneTab) {
+                      terminals.start({ placement: "main" });
+                      return;
+                    }
                     activateTab(tab.id);
                     terminals.start();
                   }
@@ -2860,7 +2963,9 @@ function ThreadDetailViewInternal(
               onOpenFileInEditor: handleOpenFileInEditor,
               onTabReorder: reorderTab,
               onOpenNewTab: handleOpenNewTab,
-              onOpenMainPaneNewTab: handleOpenMainPaneNewTab,
+              mainPaneActions,
+              mainPaneAgentTabs,
+              renderMainPaneNewAgent,
               onRetryGitDiffEligibility: () => {
                 void environmentQuery.refetch();
               },
