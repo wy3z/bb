@@ -83,6 +83,7 @@ const INITIAL_OVERFLOW_STATE: TabStripOverflowState = {
 };
 
 export interface SecondaryPanelTabMoveAction {
+  canMove?: (tabId: string) => boolean;
   label: string;
   onMove: (tabId: string) => void;
 }
@@ -576,7 +577,7 @@ function SortablePanelTab({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent aria-label={`${tab.label} tab actions`}>
-        {moveAction ? (
+        {moveAction && moveAction.canMove?.(tabId) !== false ? (
           <>
             <ContextMenuItem onSelect={() => moveAction.onMove(tabId)}>
               {moveAction.label}

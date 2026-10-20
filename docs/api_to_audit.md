@@ -1061,9 +1061,12 @@ from a main-pane New tab page takes that page's place. Unknown placements are
 declined. Placement is device-local, like the right panel's split layout
 (`bb.thread.mainPaneTabs-<threadId>-1`).
 
-On the desktop thread view the main pane is also the default for new browser
-and file tabs; a tab already open in the right panel stays there, and plugin
-panels and terminals default to the right panel. The pane's strip lists the
+On the desktop thread view files always open in the main pane, including
+plugin file openers and an explicit `"panel"` placement; file tabs left in the
+right panel move over and do not offer "Move to right panel". New browser tabs
+default to the main pane, a browser tab already open in the right panel stays
+there, and plugin panels and terminals default to the right panel. Alt+1–9
+select the strip's tabs in order: agents, moved tabs, then a New agent draft. The pane's strip lists the
 thread's workspace as agent tabs: top-level threads sharing its worktree, or,
 in a shared checkout, threads started from the pane's New agent (linked per
 device). Its + opens a New agent composer in the workspace's environment, a
@@ -1092,6 +1095,21 @@ Docs: Plugin Guide thread side-panel tabs and file navigation surfaces.
    placement option.
 5. Decide whether dragging a tab between the right panel and the main pane
    should replace or join the context-menu moves.
+
+## `PluginThreadPanelActionRegistration.experimental_pinned`
+
+A pinned `threadPanelAction` keeps one tab, opened without params, in every
+thread's right panel. Core adds it when a thread view mounts, without
+selecting the tab or revealing the panel, and draws it without a close control
+or "Move to main pane". First caller: the FileTree plugin's tree.
+
+**Audit before stabilizing.**
+
+1. Core writes the pinned tab into each visited thread's server-synced tab
+   state. Decide whether pinned tabs should be derived at render time instead.
+2. Closing it from the keyboard (`panel.close`) removes it until the thread
+   view mounts again. Decide whether pinned tabs should refuse to close.
+3. Decide how several pinned tabs from different plugins are ordered.
 
 ## Live-file navigation (`experimental_FileLink`, `BbNavigate.experimental_openFilePreview`, and `BbNavigate.experimental_openFileExternally`)
 

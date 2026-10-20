@@ -1,4 +1,5 @@
 import {
+  MAIN_PANE_TAB_APP_COMMAND_IDS,
   QUESTION_SELECT_APP_COMMAND_IDS,
   PANE_FOCUS_APP_COMMAND_IDS,
   THREAD_JUMP_APP_COMMAND_IDS,
@@ -68,6 +69,13 @@ export const APP_COMMAND_GROUPS: readonly AppCommandGroup[] = [
           id,
           `Open thread ${index + 1}`,
           `Open visible sidebar thread ${index + 1}.`,
+        ),
+      ),
+      ...MAIN_PANE_TAB_APP_COMMAND_IDS.map((id, index) =>
+        paletteHiddenCommand(
+          id,
+          `Select main pane tab ${index + 1}`,
+          `Select tab ${index + 1} in the thread pane's tab strip: agents first, then moved tabs.`,
         ),
       ),
     ],

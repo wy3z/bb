@@ -24,6 +24,18 @@ export const QUESTION_SELECT_APP_COMMAND_IDS = [
   "question.select.9",
 ] as const;
 
+export const MAIN_PANE_TAB_APP_COMMAND_IDS = [
+  "mainPane.tab.1",
+  "mainPane.tab.2",
+  "mainPane.tab.3",
+  "mainPane.tab.4",
+  "mainPane.tab.5",
+  "mainPane.tab.6",
+  "mainPane.tab.7",
+  "mainPane.tab.8",
+  "mainPane.tab.9",
+] as const;
+
 export const PANE_DIRECTION_APP_COMMAND_IDS = [
   "pane.focus.left",
   "pane.focus.right",
@@ -53,6 +65,7 @@ export const APP_COMMAND_IDS = [
   "history.back",
   "history.forward",
   ...THREAD_JUMP_APP_COMMAND_IDS,
+  ...MAIN_PANE_TAB_APP_COMMAND_IDS,
   ...PANE_DIRECTION_APP_COMMAND_IDS,
   "pane.focus.previous",
   "pane.focus.next",

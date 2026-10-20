@@ -1015,6 +1015,13 @@ export interface PluginThreadPanelActionRegistration {
   /** Rendered inside every panel tab this action opens. */
   component: ComponentType<PluginThreadPanelProps>;
   /**
+   * Keep one tab of this action, opened without params, in every thread's
+   * right panel, with no close control: a tool the panel always offers, like
+   * a file tree. It is not selected or revealed when added. Experimental: see
+   * docs/api_to_audit.md.
+   */
+  experimental_pinned?: boolean;
+  /**
    * How the host frames the tab content. "padded" (default) wraps the
    * component in the panel's scroll container with standard padding —
    * right for document-like content. "flush" gives the component the full

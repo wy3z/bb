@@ -54,6 +54,7 @@ import {
 } from "./SecondaryPanelTabStrip";
 import { useThreadMainPaneHost } from "./threadMainPaneHost";
 import {
+  adoptTabsIntoMainPane,
   MAIN_PANE_NEW_AGENT_TAB_ID,
   moveTabToMainPane,
   moveTabToRightPanel,
@@ -119,7 +120,11 @@ import type {
   FixedPanelViewTab,
   SecondaryFixedPanelTab,
 } from "@/lib/fixed-panel-tabs-state";
-import { useAppCommandShortcut } from "@/components/commands/AppCommandProvider";
+import {
+  useAppCommandShortcut,
+  useIndexedAppCommandHandlers,
+} from "@/components/commands/AppCommandProvider";
+import { MAIN_PANE_TAB_APP_COMMAND_IDS } from "@bb/domain";
 import { AppCommandShortcutHint } from "@/components/commands/AppCommandShortcutHint";
 import type { AppShortcutPresentation } from "@/lib/app-keybindings";
 import { TabPill } from "@/components/ui/tab-pill";
@@ -267,6 +272,7 @@ export interface ThreadSecondaryPanelProps {
   ) => ReactNode;
   splitPanelStateId?: string;
   hostsMainPane?: boolean;
+  keepsFilesInMainPane?: boolean;
   isOpen: boolean;
   showConversationCollapseControl?: boolean;
   showFullScreenShortcut?: boolean;
@@ -322,6 +328,7 @@ function ThreadSecondaryPanelContent({
   onClose,
   onClearPendingGitDiffIntent,
   onOpenNewTab,
+  keepsFilesInMainPane = false,
   mainPaneActions,
   mainPaneAgentTabs,
   renderMainPaneNewAgent,
@@ -364,20 +371,28 @@ function ThreadSecondaryPanelContent({
   useEffect(() => {
     if (!isMainPaneEnabled || tabs.length === 0) return;
     const availableTabIds = tabs.map((tab) => tab.tab.id);
+    const fileTabIds = keepsFilesInMainPane
+      ? tabs.filter((tab) => isFilePanelTab(tab.tab)).map((tab) => tab.tab.id)
+      : [];
     updateMainPaneTabs((state) =>
-      reconcileMainPaneTabs(state, availableTabIds),
+      adoptTabsIntoMainPane(
+        reconcileMainPaneTabs(state, availableTabIds),
+        fileTabIds,
+      ),
     );
-  }, [isMainPaneEnabled, tabs, updateMainPaneTabs]);
+  }, [isMainPaneEnabled, keepsFilesInMainPane, tabs, updateMainPaneTabs]);
   const panelTabMoveAction = useMemo<SecondaryPanelTabMoveAction | undefined>(
     () =>
       isMainPaneEnabled
         ? {
+            canMove: (tabId) =>
+              tabs.find((tab) => tab.tab.id === tabId)?.isPinned !== true,
             label: "Move to main pane",
             onMove: (tabId) =>
               updateMainPaneTabs((state) => moveTabToMainPane(state, tabId)),
           }
         : undefined,
-    [isMainPaneEnabled, updateMainPaneTabs],
+    [isMainPaneEnabled, tabs, updateMainPaneTabs],
   );
   const visibleTabs = useMemo(
     () =>
@@ -1262,6 +1277,9 @@ function ThreadSecondaryPanelContent({
     ? mainPaneTabsState.activeTabId
     : null;
   const mainPaneTabMoveAction: SecondaryPanelTabMoveAction = {
+    canMove: (tabId) =>
+      !keepsFilesInMainPane ||
+      !tabs.some((tab) => tab.tab.id === tabId && isFilePanelTab(tab.tab)),
     label: "Move to right panel",
     onMove: (tabId) => {
       updateMainPaneTabs((state) => moveTabToRightPanel(state, tabId));
@@ -1282,6 +1300,31 @@ function ThreadSecondaryPanelContent({
     (mainPaneAgentTabs !== undefined ||
       mainSurfaceTabs.length > 0 ||
       hasNewAgentDraft);
+  const mainPaneStripTargets: readonly (() => void)[] = [
+    ...(mainPaneAgentTabs?.map((agent) =>
+      agent.isCurrent ? selectChat : agent.onSelect,
+    ) ?? [selectChat]),
+    ...mainSurfaceTabs.map((tab) => tab.onSelect),
+    ...(hasNewAgentDraft
+      ? [
+          () =>
+            updateMainPaneTabs((state) =>
+              selectMainPaneTab(state, MAIN_PANE_NEW_AGENT_TAB_ID),
+            ),
+        ]
+      : []),
+  ];
+  useIndexedAppCommandHandlers(
+    MAIN_PANE_TAB_APP_COMMAND_IDS,
+    (index) => {
+      const select = mainPaneStripTargets[index];
+      if (select === undefined) return false;
+      select();
+      return true;
+    },
+    0,
+    showsMainPaneStrip && canNavigateTabs,
+  );
   const mainPaneStrip =
     mainPaneHost?.stripElement && showsMainPaneStrip
       ? createPortal(
@@ -1307,13 +1350,14 @@ function ThreadSecondaryPanelContent({
               </div>
             ) : (
               <div
-                className="flex min-w-0 shrink items-center gap-1"
+                className="flex shrink-0 items-center gap-1"
                 data-thread-main-pane-agents=""
               >
                 {mainPaneAgentTabs.map((agent) => (
-                  <div key={agent.id} className="min-w-0 shrink">
+                  <div key={agent.id} className="shrink-0">
                     <TabPill
                       label={agent.label}
+                      labelMaxWidthClass="max-w-[160px]"
                       leadingVisual={agent.leadingVisual}
                       title={agent.title}
                       isActive={agent.isCurrent && isChatActive}
@@ -1557,6 +1601,20 @@ function PinnedIconTab({
       <TooltipContent>{title}</TooltipContent>
     </Tooltip>
   );
+}
+
+function isFilePanelTab(tab: SecondaryPanelRenderableTab["tab"]): boolean {
+  switch (tab.kind) {
+    case "workspace-file-preview":
+    case "host-file-preview":
+    case "thread-storage-file-preview":
+    case "attachment-file-preview":
+      return true;
+    case "plugin-panel":
+      return tab.fileOpenerOwner !== undefined;
+    default:
+      return false;
+  }
 }
 
 function MainPaneAddMenu({ actions }: { actions: MainPaneActions }) {

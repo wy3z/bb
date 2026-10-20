@@ -446,6 +446,7 @@ function collectPanelAction<C, Run>(
     component: C;
     layout?: "padded" | "flush";
     run?: Run;
+    experimental_pinned?: boolean;
   },
 ): {
   id: string;
@@ -454,6 +455,7 @@ function collectPanelAction<C, Run>(
   component: C;
   layout?: "padded" | "flush";
   run?: Run;
+  experimental_pinned?: boolean;
 } {
   const id = requireSlotId(kind, registration?.id);
   requireUniqueId(kind, seen, id);
@@ -470,6 +472,14 @@ function collectPanelAction<C, Run>(
   ) {
     throw new Error(`${kind}: "layout" must be "padded" or "flush"`);
   }
+  if (
+    registration.experimental_pinned !== undefined &&
+    typeof registration.experimental_pinned !== "boolean"
+  ) {
+    throw new Error(
+      `${kind}: "experimental_pinned" must be a boolean when set`,
+    );
+  }
   return {
     id,
     title: requireNonEmptyString(kind, "title", registration.title),
@@ -481,6 +491,9 @@ function collectPanelAction<C, Run>(
       ? { layout: registration.layout }
       : {}),
     ...(registration.run !== undefined ? { run: registration.run } : {}),
+    ...(registration.experimental_pinned === true
+      ? { experimental_pinned: true }
+      : {}),
   };
 }
 

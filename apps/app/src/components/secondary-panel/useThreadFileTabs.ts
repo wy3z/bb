@@ -88,6 +88,7 @@ import {
 
 interface UseThreadFileTabsParams {
   defaultContentPlacement?: PanelTabPlacement;
+  filePlacement?: PanelTabPlacement;
   panelStateId: string | null | undefined;
   syncThreadId: string | null | undefined;
   environmentId: string | null | undefined;
@@ -336,6 +337,7 @@ function openPluginPanelTabInState(
 
 export function useThreadFileTabs({
   defaultContentPlacement = "panel",
+  filePlacement,
   panelStateId,
   syncThreadId,
   environmentId,
@@ -521,8 +523,11 @@ export function useThreadFileTabs({
       tabId: string,
       behavior: OpenResolvedTabBehavior,
       requested: PanelTabPlacement | undefined,
-      isContentTab: boolean,
+      contentKind: "browser" | "file" | null,
     ): PanelTabPlacement => {
+      if (contentKind === "file" && filePlacement !== undefined) {
+        return filePlacement;
+      }
       if (requested !== undefined) return requested;
       const mainTabIds = store.get(mainPaneTabsAtom).tabIds;
       if (mainTabIds.includes(tabId)) return "main";
@@ -540,9 +545,11 @@ export function useThreadFileTabs({
       const isAlreadyOpen = latestSecondaryTabsRef.current.some(
         (tab) => tab.id === tabId,
       );
-      return isContentTab && !isAlreadyOpen ? defaultContentPlacement : "panel";
+      return contentKind !== null && !isAlreadyOpen
+        ? defaultContentPlacement
+        : "panel";
     },
-    [defaultContentPlacement, mainPaneTabsAtom, store],
+    [defaultContentPlacement, filePlacement, mainPaneTabsAtom, store],
   );
 
   const placeOpenedTab = useCallback(
@@ -614,7 +621,11 @@ export function useThreadFileTabs({
         tab.id,
         behavior,
         requestedPlacement,
-        request.kind !== "new-tab",
+        request.kind === "new-tab"
+          ? null
+          : request.kind === "browser"
+            ? "browser"
+            : "file",
       );
       placeOpenedTab(tab.id, behavior, placement);
       updateFixedPanelTabsState((state) => {
@@ -780,7 +791,7 @@ export function useThreadFileTabs({
         tab.id,
         "replace-new-tab",
         requestedPlacement,
-        false,
+        null,
       );
       placeOpenedTab(tab.id, "replace-new-tab", placement);
       updateFixedPanelTabsState((state) => {
@@ -796,6 +807,32 @@ export function useThreadFileTabs({
       resolveTabPlacement,
       updateFixedPanelTabsState,
     ],
+  );
+
+  const ensurePinnedPluginPanel = useCallback(
+    ({
+      pluginId,
+      actionId,
+      title,
+    }: Pick<OpenPluginPanelArgs, "actionId" | "pluginId" | "title">) => {
+      const tab = createPluginPanelFixedPanelTab({
+        actionId,
+        paramsJson: null,
+        pluginId,
+        title,
+      });
+      updateFixedPanelTabsState((state) =>
+        findSecondaryPanelTab(state.secondary.tabs, tab.id) !== null
+          ? state
+          : setSecondaryPanelTabsInState({
+              activeTabId: state.secondary.activeTabId,
+              isOpen: state.secondary.isOpen,
+              state,
+              tabs: [tab, ...state.secondary.tabs],
+            }),
+      );
+    },
+    [updateFixedPanelTabsState],
   );
 
   const selectFileSearchResult = useCallback(
@@ -906,6 +943,7 @@ export function useThreadFileTabs({
     browserTabs,
     clearActiveFileTabs,
     closeTab,
+    ensurePinnedPluginPanel,
     getTabPlacement,
     openPluginPanel,
     openTab,

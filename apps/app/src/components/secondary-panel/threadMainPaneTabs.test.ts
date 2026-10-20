@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adoptTabsIntoMainPane,
   EMPTY_THREAD_MAIN_PANE_TABS,
   MAIN_PANE_NEW_AGENT_TAB_ID,
   moveTabToMainPane,
@@ -92,5 +93,13 @@ describe("thread main pane tabs", () => {
     expect(reconcileMainPaneTabs(withDraft, ["browser-a", "file-b"])).toBe(
       withDraft,
     );
+  });
+
+  it("adopts tabs without changing what is showing", () => {
+    expect(adoptTabsIntoMainPane(TWO_TABS, ["file-b", "file-c"])).toEqual({
+      tabIds: ["browser-a", "file-b", "file-c"],
+      activeTabId: "file-b",
+    });
+    expect(adoptTabsIntoMainPane(TWO_TABS, ["browser-a"])).toBe(TWO_TABS);
   });
 });

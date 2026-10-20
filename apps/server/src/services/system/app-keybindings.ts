@@ -8,6 +8,7 @@ import type {
   AppShortcut,
 } from "@bb/domain";
 import {
+  MAIN_PANE_TAB_APP_COMMAND_IDS,
   QUESTION_SELECT_APP_COMMAND_IDS,
   PANE_FOCUS_APP_COMMAND_IDS,
   THREAD_JUMP_APP_COMMAND_IDS,
@@ -209,6 +210,9 @@ export const DEFAULT_APP_KEYBINDINGS: AppDefaultKeybindings = [
     },
   ),
   ...numberedChatBindings(THREAD_JUMP_APP_COMMAND_IDS, mainWithoutModal),
+  ...MAIN_PANE_TAB_APP_COMMAND_IDS.map((command, index) =>
+    binding(command, String(index + 1), { alt: true }, mainWithoutModal),
+  ),
   ...(
     [
       ["pane.focus.left", "ArrowLeft"],

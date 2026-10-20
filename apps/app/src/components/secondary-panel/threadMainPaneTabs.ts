@@ -72,6 +72,15 @@ export function moveTabToMainPane(
   return preserveIdentity(state, { tabIds, activeTabId: tabId });
 }
 
+export function adoptTabsIntoMainPane(
+  state: ThreadMainPaneTabsState,
+  tabIds: readonly string[],
+): ThreadMainPaneTabsState {
+  const missing = tabIds.filter((tabId) => !state.tabIds.includes(tabId));
+  if (missing.length === 0) return state;
+  return { ...state, tabIds: [...state.tabIds, ...missing] };
+}
+
 export function moveTabToRightPanel(
   state: ThreadMainPaneTabsState,
   tabId: string,

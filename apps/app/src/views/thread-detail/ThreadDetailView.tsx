@@ -672,6 +672,7 @@ function ThreadDetailViewInternal(
     clearActiveFileTabs,
     activateTab,
     closeTab,
+    ensurePinnedPluginPanel,
     getTabPlacement,
     openTab,
     openPluginPanel,
@@ -682,6 +683,7 @@ function ThreadDetailViewInternal(
     updateBrowserTab,
   } = useThreadFileTabs({
     defaultContentPlacement: renderSecondaryPanelAsDrawer ? "panel" : "main",
+    ...(renderSecondaryPanelAsDrawer ? {} : { filePlacement: "main" }),
     panelStateId: threadId,
     syncThreadId: threadId,
     environmentId: thread?.environmentId,
@@ -1300,6 +1302,23 @@ function ThreadDetailViewInternal(
     slot: "threadPanelAction",
   });
 
+  const pinnedPluginPanelActions = useMemo(
+    () =>
+      pluginThreadPanelActions.filter(
+        (action) => action.experimental_pinned === true,
+      ),
+    [pluginThreadPanelActions],
+  );
+  useEffect(() => {
+    if (threadId === undefined) return;
+    for (const action of pinnedPluginPanelActions) {
+      ensurePinnedPluginPanel({
+        actionId: action.id,
+        pluginId: action.pluginId,
+        title: action.title,
+      });
+    }
+  }, [ensurePinnedPluginPanel, pinnedPluginPanelActions, threadId]);
   const handleSelectFileSearchResult = useCallback(
     (selection: FileSearchSelection) => {
       selectFileSearchResult(selection);
@@ -2856,6 +2875,9 @@ function ThreadDetailViewInternal(
         case "plugin-panel":
           return {
             ...shared,
+            isPinned:
+              pluginAction?.experimental_pinned === true &&
+              tab.paramsJson === null,
             label: tab.title,
             leadingVisual: (
               <PluginItemIcon
@@ -2963,6 +2985,7 @@ function ThreadDetailViewInternal(
               onOpenFileInEditor: handleOpenFileInEditor,
               onTabReorder: reorderTab,
               onOpenNewTab: handleOpenNewTab,
+              keepsFilesInMainPane: !renderSecondaryPanelAsDrawer,
               mainPaneActions,
               mainPaneAgentTabs,
               renderMainPaneNewAgent,
