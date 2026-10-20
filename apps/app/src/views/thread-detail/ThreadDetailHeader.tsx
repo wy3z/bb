@@ -65,6 +65,7 @@ interface ThreadDetailHeaderProps {
   actionsMenu: ((args: ThreadDetailHeaderActionsMenuArgs) => ReactNode) | null;
   hideTitle?: boolean;
   isSecondaryPanelOpen: boolean;
+  mainPaneStrip?: ReactNode;
   onClosePane?: () => void;
   onOpenThreadGitAction: (target: ThreadGitActionDialogTarget) => void;
   onToggleSecondaryPanel: () => void;
@@ -79,6 +80,7 @@ export function ThreadDetailHeader({
   actionsMenu,
   hideTitle = false,
   isSecondaryPanelOpen,
+  mainPaneStrip,
   onClosePane,
   onOpenThreadGitAction,
   onToggleSecondaryPanel,
@@ -186,43 +188,48 @@ export function ThreadDetailHeader({
   const showRightPanelToggle =
     secondaryPanelHost === null && (!isSecondaryPanelOpen || isCompactViewport);
   const isTitleHidden = hideTitle && !isEditing;
+  const showsMainPaneStrip = isTitleHidden && mainPaneStrip !== undefined;
 
   const center = (
     <>
-      <div
-        data-pane-header-focus-tab={
-          isSplitPaneHeader && isFocused ? "" : undefined
-        }
-        className={cn(
-          "relative min-w-0",
-          isSplitPaneHeader && "-my-1 -ml-2 rounded-md px-2 py-1",
-          isSplitPaneHeader && isFocused && CONTEXT_SELECTION_SURFACE_CLASS,
-          isTitleHidden &&
-            beginPaneDrag &&
-            "cursor-grab touch-none select-none",
-        )}
-        onPointerDown={
-          isTitleHidden && beginPaneDrag ? handleTitlePointerDown : undefined
-        }
-      >
-        <p
+      {showsMainPaneStrip ? (
+        mainPaneStrip
+      ) : (
+        <div
+          data-pane-header-focus-tab={
+            isSplitPaneHeader && isFocused ? "" : undefined
+          }
           className={cn(
-            "relative min-w-0 text-sm font-normal transition-colors",
-            isTitleHidden && "sr-only",
-            isEditing && "overflow-visible",
-            isSplitPaneHeader &&
-              !isFocused &&
-              dimsInactiveSplits &&
-              CONTEXT_INACTIVE_TEXT_CLASS,
-            usesDesktopChrome && MACOS_WINDOW_NO_DRAG_CLASS,
-            beginPaneDrag && !isEditing && "cursor-grab touch-none select-none",
+            "relative min-w-0",
+            isSplitPaneHeader && "-my-1 -ml-2 rounded-md px-2 py-1",
+            isSplitPaneHeader && isFocused && CONTEXT_SELECTION_SURFACE_CLASS,
+            isTitleHidden &&
+              beginPaneDrag &&
+              "cursor-grab touch-none select-none",
           )}
-          onDoubleClick={handleTitleDoubleClick}
-          onPointerDown={beginPaneDrag ? handleTitlePointerDown : undefined}
+          onPointerDown={
+            isTitleHidden && beginPaneDrag ? handleTitlePointerDown : undefined
+          }
         >
-          {isEditing ? editor : <ThreadTitle title={threadTitle} />}
-        </p>
-      </div>
+          <p
+            className={cn(
+              "relative min-w-0 text-sm font-normal transition-colors",
+              isTitleHidden && "sr-only",
+              isEditing && "overflow-visible",
+              isSplitPaneHeader &&
+                !isFocused &&
+                dimsInactiveSplits &&
+                CONTEXT_INACTIVE_TEXT_CLASS,
+              usesDesktopChrome && MACOS_WINDOW_NO_DRAG_CLASS,
+              beginPaneDrag && !isEditing && "cursor-grab touch-none select-none",
+            )}
+            onDoubleClick={handleTitleDoubleClick}
+            onPointerDown={beginPaneDrag ? handleTitlePointerDown : undefined}
+          >
+            {isEditing ? editor : <ThreadTitle title={threadTitle} />}
+          </p>
+        </div>
+      )}
       {actionsMenu == null ? null : (
         <span
           className={cn(

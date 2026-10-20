@@ -299,6 +299,7 @@ import {
   useUpdateThreadMainPaneTabs,
 } from "@/components/secondary-panel/threadMainPaneTabs";
 import { ThreadStatusGlyph } from "@/components/thread/ThreadStatusGlyph";
+import { ThreadMainPaneStripSlot } from "@/components/secondary-panel/threadMainPaneHost";
 import {
   resolveThreadListIndicator,
   threadListIndicatorStateForThread,
@@ -2551,6 +2552,9 @@ function ThreadDetailViewInternal(
       )}
       isSecondaryPanelOpen={isSecondaryPanelOpen}
       hideTitle={mainPaneAgentTabs !== undefined}
+      mainPaneStrip={
+        mainPaneAgentTabs === undefined ? undefined : <ThreadMainPaneStripSlot />
+      }
       onClosePane={onRequestClose ?? undefined}
       onOpenThreadGitAction={gitActions.threadGitActionDialog.onOpen}
       onToggleSecondaryPanel={toggleSecondaryPanel}

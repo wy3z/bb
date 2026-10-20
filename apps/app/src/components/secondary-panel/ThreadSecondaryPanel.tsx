@@ -100,6 +100,7 @@ import {
 import {
   CHROME_ROW_CLASS,
   getBbDesktopInfo,
+  MACOS_APP_REGION_NO_DRAG_CLASS,
   MACOS_CHROME_CONTROL_AXIS_CLASS,
   MACOS_COLLAPSED_TOP_LEFT_RESERVE_CLASS,
   MACOS_TITLE_BAR_COLLAPSED_SIDEBAR_RESERVE_CLASS,
@@ -364,7 +365,7 @@ function ThreadSecondaryPanelContent({
   const diffShortcut = useAppCommandShortcut("diff.toggle");
   const mainPaneHost = useThreadMainPaneHost();
   const mainPaneColumnElement =
-    mainPaneHost?.stripElement?.parentElement ?? null;
+    mainPaneHost?.contentElement?.parentElement ?? null;
   const isMainPaneEnabled =
     !renderAsDrawer && splitPanelStateId !== undefined && mainPaneHost !== null;
   const mainPaneTabsState = useThreadMainPaneTabs(
@@ -1370,8 +1371,8 @@ function ThreadSecondaryPanelContent({
             aria-label="Thread views"
             data-thread-main-pane-tabs=""
             className={cn(
-              CHROME_ROW_CLASS,
-              "min-w-0 gap-1 border-b border-border-seam-vertical/60 px-(--bb-panel-chrome-padding)",
+              "flex w-max min-w-0 items-center gap-1",
+              usesDesktopChrome && MACOS_APP_REGION_NO_DRAG_CLASS,
             )}
           >
             {mainPaneAgentTabs === undefined ? (

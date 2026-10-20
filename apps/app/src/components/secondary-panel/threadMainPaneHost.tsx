@@ -13,24 +13,33 @@ export function useThreadMainPaneHost(): ThreadMainPaneHost | null {
   return useContext(ThreadMainPaneHostContext);
 }
 
+export const ThreadMainPaneStripSlotContext = createContext<
+  ((element: HTMLElement | null) => void) | null
+>(null);
+
+export function ThreadMainPaneStripSlot() {
+  const onStripElement = useContext(ThreadMainPaneStripSlotContext);
+  if (onStripElement === null) return null;
+  return (
+    <div
+      ref={onStripElement}
+      data-thread-main-pane-strip=""
+      className="no-scrollbar flex min-w-0 flex-1 items-center overflow-x-auto overflow-y-hidden"
+    />
+  );
+}
+
 interface ThreadMainPaneFrameProps {
   children: ReactNode;
   onContentElement: (element: HTMLElement | null) => void;
-  onStripElement: (element: HTMLElement | null) => void;
 }
 
 export function ThreadMainPaneFrame({
   children,
   onContentElement,
-  onStripElement,
 }: ThreadMainPaneFrameProps) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div
-        ref={onStripElement}
-        data-thread-main-pane-strip=""
-        className="flex shrink-0 flex-col empty:hidden"
-      />
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {children}
         <div
