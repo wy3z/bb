@@ -12,7 +12,10 @@ import {
   type ReactNode,
 } from "react";
 import { nanoid } from "nanoid";
-import { useSystemProviderInfo } from "@/hooks/queries/system-queries";
+import {
+  useSystemProviderInfo,
+  useSystemProviders,
+} from "@/hooks/queries/system-queries";
 import { useImmediateRouteNavigate } from "@/components/ui/app-route-anchor";
 import { useAtom } from "jotai";
 import { useDesktopBrowserReveal } from "@/lib/use-desktop-browser-reveal";
@@ -33,6 +36,7 @@ import { ThreadProviderContext } from "@/components/thread/thread-provider-conte
 import {
   defaultAppSettings,
   resolveEnvironmentMergeBaseBranch,
+  type ProviderInfo,
   type ThreadListEntry,
   type ThreadWithRuntime,
 } from "@bb/domain";
@@ -301,11 +305,12 @@ import {
   selectMainPaneAgentTab,
   useUpdateThreadMainPaneTabs,
 } from "@/components/secondary-panel/threadMainPaneTabs";
-import { ThreadStatusGlyph } from "@/components/thread/ThreadStatusGlyph";
 import { ThreadMainPaneStripSlot } from "@/components/secondary-panel/threadMainPaneHost";
+import { getProviderIconInfo } from "@/lib/provider-icon";
 import {
   resolveThreadListIndicator,
   threadListIndicatorStateForThread,
+  type ThreadListIndicatorKind,
 } from "@bb/client-core";
 import { ThreadArchiveCommandHandler } from "./ThreadArchiveCommandHandler";
 
@@ -323,6 +328,32 @@ function isPullRequestMergeMethod(
   value: string,
 ): value is PullRequestMergeMethod {
   return value === "merge" || value === "squash" || value === "rebase";
+}
+
+function getAgentTabIndicatorDotClass(
+  indicator: ThreadListIndicatorKind,
+): string | null {
+  switch (indicator) {
+    case "unread-error":
+    case "queued-failed":
+      return "bg-destructive";
+    case "unread-success":
+      return "bg-success-foreground";
+    case "runtime":
+    case "workflow":
+    case "background-agent":
+    case "background-command":
+    case "plan-mode":
+    case "goal":
+    case "working-draft":
+      return "bg-success-foreground motion-safe:animate-pulse";
+    case "waiting-for-input":
+    case "queued-waiting":
+      return "bg-muted-foreground/70";
+    case "draft":
+    case "none":
+      return null;
+  }
 }
 
 const pullRequestMergeMethodAtom = atomWithStorage<PullRequestMergeMethod>(
@@ -1536,6 +1567,14 @@ function ThreadDetailViewInternal(
   const threadExecutionDefaults = useThreadDefaultExecutionOptions(
     threadId ?? "",
   ).data;
+  const systemProviders = useSystemProviders().data;
+  const providersById = useMemo(() => {
+    const providers = new Map<string, ProviderInfo>();
+    for (const provider of systemProviders ?? []) {
+      providers.set(provider.id, provider);
+    }
+    return providers;
+  }, [systemProviders]);
   const mainPaneAgentTabs = useMemo<readonly MainPaneAgentTab[] | undefined>(
     () =>
       renderSecondaryPanelAsDrawer ||
@@ -1544,17 +1583,34 @@ function ThreadDetailViewInternal(
         ? undefined
         : workspaceThreads.map((entry) => {
             const title = getThreadDisplayTitle(entry);
+            const indicator = resolveThreadListIndicator(
+              threadListIndicatorStateForThread(entry, false),
+            );
+            const indicatorDotClass = getAgentTabIndicatorDotClass(indicator);
+            const ProviderGlyph = getProviderIconInfo(
+              "agent",
+              entry.providerId,
+              providersById.get(entry.providerId) ?? null,
+            ).icon;
             return {
               id: entry.id,
               isCurrent: entry.id === threadId,
               label: title,
               leadingVisual: (
-                <ThreadStatusGlyph
-                  indicator={resolveThreadListIndicator(
-                    threadListIndicatorStateForThread(entry, false),
+                <span className="relative inline-flex items-center justify-center">
+                  <ProviderGlyph
+                    className={COARSE_POINTER_COMPACT_ICON_SIZE_CLASS}
+                  />
+                  {indicatorDotClass === null ? null : (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute -right-1 -top-0.5 size-1.5 rounded-full",
+                        indicatorDotClass,
+                      )}
+                    />
                   )}
-                  size="compact"
-                />
+                </span>
               ),
               onSelect: () =>
                 updateMainPaneTabs((state) =>
@@ -1570,6 +1626,7 @@ function ThreadDetailViewInternal(
           }),
     [
       navigateInPane,
+      providersById,
       renderSecondaryPanelAsDrawer,
       threadId,
       updateMainPaneTabs,
