@@ -210,9 +210,19 @@ export const DEFAULT_APP_KEYBINDINGS: AppDefaultKeybindings = [
     },
   ),
   ...numberedChatBindings(THREAD_JUMP_APP_COMMAND_IDS, mainWithoutModal),
-  ...MAIN_PANE_TAB_APP_COMMAND_IDS.map((command, index) =>
+  ...MAIN_PANE_TAB_APP_COMMAND_IDS.flatMap((command, index) => [
     binding(command, String(index + 1), { alt: true }, mainWithoutModal),
-  ),
+    binding(
+      command,
+      String(index + 1),
+      { alt: true },
+      {
+        all: ["mainSurface", "browserFocus"],
+        desktopOnly: true,
+        none: ["modalOpen"],
+      },
+    ),
+  ]),
   ...(
     [
       ["pane.focus.left", "ArrowLeft"],

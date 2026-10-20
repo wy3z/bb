@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  MAIN_PANE_TAB_APP_COMMAND_IDS,
   PANE_DIRECTION_APP_COMMAND_IDS,
   defaultAppSettings,
   isAppKeybindingAvailableForClient,
@@ -384,6 +385,7 @@ export function AppCommandProvider({ children }: { children: ReactNode }) {
           "panel.nextTab",
           "panel.previousNewTabItem",
           "panel.nextNewTabItem",
+          ...MAIN_PANE_TAB_APP_COMMAND_IDS,
           ...PANE_DIRECTION_APP_COMMAND_IDS,
           "pane.focus.previous",
           "pane.focus.next",
