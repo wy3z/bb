@@ -664,6 +664,7 @@ function PanelTab({
   return (
     <TabPill
       label={tab.label}
+      iconOnly={tab.iconOnly === true}
       leadingVisual={tab.leadingVisual}
       secondaryLabel={tab.statusLabel === null ? null : `(${tab.statusLabel})`}
       title={title}

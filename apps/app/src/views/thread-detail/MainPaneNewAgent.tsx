@@ -54,9 +54,6 @@ export function MainPaneNewAgent({
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto p-6">
           <div className="flex w-full max-w-3xl flex-col gap-2">
             <div className="text-sm font-medium text-foreground">New agent</div>
-            <div className="text-sm text-muted-foreground">
-              Works in this workspace's directory, beside the other agents.
-            </div>
             {renderPromptBox({
               placeholder: "What should this agent do?",
               mentionMenuPlacement: "bottom",

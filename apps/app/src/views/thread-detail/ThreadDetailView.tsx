@@ -2872,12 +2872,14 @@ function ThreadDetailViewInternal(
             statusLabel: null,
             onSelect: () => handleActivateFileTab(tab.id),
           };
-        case "plugin-panel":
+        case "plugin-panel": {
+          const isPinnedAction =
+            pluginAction?.experimental_pinned === true &&
+            tab.paramsJson === null;
           return {
             ...shared,
-            isPinned:
-              pluginAction?.experimental_pinned === true &&
-              tab.paramsJson === null,
+            iconOnly: isPinnedAction,
+            isPinned: isPinnedAction,
             label: tab.title,
             leadingVisual: (
               <PluginItemIcon
@@ -2889,6 +2891,7 @@ function ThreadDetailViewInternal(
             statusLabel: null,
             onSelect: () => handleActivateFileTab(tab.id),
           };
+        }
       }
     });
   const threadDetailContent = (
