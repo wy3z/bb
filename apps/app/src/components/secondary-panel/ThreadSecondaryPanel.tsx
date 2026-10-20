@@ -53,6 +53,7 @@ import {
   type SecondaryPanelTabMoveAction,
 } from "./SecondaryPanelTabStrip";
 import { useThreadMainPaneHost } from "./threadMainPaneHost";
+import { beginPaneTabMoveDrag, isPointInElement } from "./paneTabMoveDrag";
 import {
   adoptTabsIntoMainPane,
   getMainPaneAgentTabId,
@@ -362,6 +363,8 @@ function ThreadSecondaryPanelContent({
     : null;
   const diffShortcut = useAppCommandShortcut("diff.toggle");
   const mainPaneHost = useThreadMainPaneHost();
+  const mainPaneColumnElement =
+    mainPaneHost?.stripElement?.parentElement ?? null;
   const isMainPaneEnabled =
     !renderAsDrawer && splitPanelStateId !== undefined && mainPaneHost !== null;
   const mainPaneTabsState = useThreadMainPaneTabs(
@@ -639,6 +642,10 @@ function ThreadSecondaryPanelContent({
       tabId: string,
       event: ReactPointerEvent<HTMLElement>,
     ) => void;
+    onBeginSurfaceTabDrag?: (
+      tabId: string,
+      event: ReactPointerEvent<HTMLElement>,
+    ) => void;
     newTabAriaLabel: string;
     onSurfaceTabReorder: SecondaryPanelTabReorderHandler;
     reserveNewTabButton: boolean;
@@ -765,6 +772,7 @@ function ThreadSecondaryPanelContent({
     fixedSurfaceTabs,
     newTabAriaLabel,
     onBeginTabDrag,
+    onBeginSurfaceTabDrag,
     onSurfaceTabReorder,
     reserveNewTabButton,
     showNewTabButton: showGroupNewTabButton,
@@ -859,7 +867,7 @@ function ThreadSecondaryPanelContent({
             activeTabId={activeSurfaceTabId}
             tabs={visibleSurfaceTabs}
             moveAction={panelTabMoveAction}
-            onBeginTabDrag={onBeginTabDrag}
+            onBeginTabDrag={onBeginSurfaceTabDrag}
             onReorderTab={onSurfaceTabReorder}
             usesDesktopChrome={usesDesktopChrome}
             isPanelOpen={isOpen}
@@ -936,6 +944,20 @@ function ThreadSecondaryPanelContent({
     const showsSurfaceDiffToolbar = isSurfaceDiffActive && !hasActiveSurfaceTab;
     const isSurfaceTerminalActive =
       activeSurfaceModel?.kind === "terminal" && hasActiveSurfaceTab;
+    const handleBeginSurfaceTabDrag =
+      onBeginTabDrag === undefined && !isMainPaneEnabled
+        ? undefined
+        : (tabId: string, dragEvent: ReactPointerEvent<HTMLElement>) => {
+            onBeginTabDrag?.(tabId, dragEvent);
+            if (!isMainPaneEnabled) return;
+            beginPaneTabMoveDrag({
+              event: dragEvent,
+              isOverTarget: (clientX, clientY) =>
+                isPointInElement(mainPaneColumnElement, clientX, clientY),
+              onDrop: () =>
+                updateMainPaneTabs((state) => moveTabToMainPane(state, tabId)),
+            });
+          };
 
     return (
       <ImageTabLightboxProvider
@@ -992,6 +1014,7 @@ function ThreadSecondaryPanelContent({
                       ? "Open new tab"
                       : "Open new tab in this pane",
                   onBeginTabDrag,
+                  onBeginSurfaceTabDrag: handleBeginSurfaceTabDrag,
                   onSurfaceTabReorder,
                   reserveNewTabButton: reserveNewTabControl,
                   showNewTabButton: showNewTabControl,
@@ -1397,6 +1420,15 @@ function ThreadSecondaryPanelContent({
                 activeTabId={isNewAgentActive ? null : activeMainSurfaceTabId}
                 tabs={mainSurfaceTabs}
                 moveAction={mainPaneTabMoveAction}
+                onBeginTabDrag={(tabId, dragEvent) => {
+                  if (mainPaneTabMoveAction.canMove?.(tabId) === false) return;
+                  beginPaneTabMoveDrag({
+                    event: dragEvent,
+                    isOverTarget: (clientX, clientY) =>
+                      isPointInElement(panelRef.current, clientX, clientY),
+                    onDrop: () => mainPaneTabMoveAction.onMove(tabId),
+                  });
+                }}
                 onReorderTab={(request) =>
                   updateMainPaneTabs((state) =>
                     reorderMainPaneTab(
