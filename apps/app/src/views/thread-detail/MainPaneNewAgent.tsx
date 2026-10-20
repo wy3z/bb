@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import {
   NewThreadComposer,
+  type NewThreadComposerSeed,
   type NewThreadComposerSubmission,
 } from "@/components/promptbox/NewThreadComposer";
 import { useCreateThread } from "@/hooks/mutations/thread-runtime-mutations";
@@ -8,6 +9,7 @@ import { useLinkThreadToWorkspace } from "@/components/secondary-panel/threadWor
 
 interface MainPaneNewAgentProps {
   environmentId: string;
+  executionSeed?: Omit<NewThreadComposerSeed, "environment" | "initialPrompt">;
   onCreated: (thread: { id: string; projectId: string }) => void;
   projectId: string;
   workspaceThreadId: string;
@@ -17,6 +19,7 @@ const noopProjectChange = () => {};
 
 export function MainPaneNewAgent({
   environmentId,
+  executionSeed,
   onCreated,
   projectId,
   workspaceThreadId,
@@ -45,7 +48,10 @@ export function MainPaneNewAgent({
         threadId: workspaceThreadId,
       }}
       selectionScope="component-local"
-      seed={{ environment: { type: "reuse", environmentId } }}
+      seed={{
+        environment: { type: "reuse", environmentId },
+        ...executionSeed,
+      }}
       resetKey={workspaceThreadId}
       focusRequest={1}
       onSubmit={handleSubmit}

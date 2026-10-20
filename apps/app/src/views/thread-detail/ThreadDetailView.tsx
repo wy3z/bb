@@ -83,6 +83,7 @@ import {
   type ProjectThreadSubsetFilters,
 } from "../../hooks/queries/thread-queries";
 import { isTransientReadError } from "@/hooks/queries/query-helpers";
+import { useThreadDefaultExecutionOptions } from "@/hooks/queries/thread-default-execution-options-query";
 import { getPromptDraftAccessor } from "@/hooks/usePromptDraftStorage";
 import { subscribeComposerFocusRequests } from "@/lib/composer-focus-requests";
 import { ThreadGitActionDialog } from "@/components/dialogs/ThreadGitActionDialog";
@@ -1528,6 +1529,9 @@ function ThreadDetailViewInternal(
   });
   const workspaceThreads = useThreadWorkspaceThreads(threadId);
   const updateMainPaneTabs = useUpdateThreadMainPaneTabs(threadId);
+  const threadExecutionDefaults = useThreadDefaultExecutionOptions(
+    threadId ?? "",
+  ).data;
   const mainPaneAgentTabs = useMemo<readonly MainPaneAgentTab[] | undefined>(
     () =>
       renderSecondaryPanelAsDrawer ||
@@ -1600,11 +1604,27 @@ function ThreadDetailViewInternal(
     ),
     [],
   );
+  const mainPaneNewAgentExecutionSeed = useMemo(() => {
+    if (thread === undefined) return undefined;
+    return {
+      providerId: thread.providerId,
+      ...(threadExecutionDefaults === null ||
+      threadExecutionDefaults === undefined
+        ? {}
+        : {
+            model: threadExecutionDefaults.model,
+            serviceTier: threadExecutionDefaults.serviceTier,
+            reasoningLevel: threadExecutionDefaults.reasoningLevel,
+            permissionMode: threadExecutionDefaults.permissionMode,
+          }),
+    };
+  }, [thread, threadExecutionDefaults]);
   const renderMainPaneNewAgent = useCallback(
     () =>
       threadId === undefined || !thread?.environmentId ? null : (
         <MainPaneNewAgent
           environmentId={thread.environmentId}
+          executionSeed={mainPaneNewAgentExecutionSeed}
           projectId={thread.projectId}
           workspaceThreadId={threadId}
           onCreated={(created) => {
@@ -1619,6 +1639,7 @@ function ThreadDetailViewInternal(
         />
       ),
     [
+      mainPaneNewAgentExecutionSeed,
       navigateInPane,
       thread?.environmentId,
       thread?.projectId,
